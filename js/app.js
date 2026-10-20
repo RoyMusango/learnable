@@ -254,7 +254,7 @@
     document.body.classList.remove('in-chat');
     const parts = location.hash.slice(1).split('/').map(decodeURIComponent);
     const r = routes[currentRoute()] ? currentRoute() : 'today';
-    $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.view === r));
+    $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.view === (r === 'glossary' ? 'course' : r)));
     area = null; currentSec = null;
     routes[r](parts[1], parts[2]);
     window.scrollTo(0, 0);
@@ -294,6 +294,32 @@
   function stageBar(sec, big = false) {
     return `<div class="stages ${big ? 'big' : ''}">${stages(sec).map((s, i) => `<div class="stage ${s.done ? 'done' : s.p > 0 ? 'part' : ''}" title="${esc(s.label)} : ${esc(s.info)}">
       <span class="n">${s.done ? icon('check') : i + 1}</span>${big ? `<b>${esc(s.label)}</b><span class="muted small">${esc(s.info)}</span>` : ''}<i style="width:${pct(s.p)}%"></i></div>`).join('')}</div>`;
+  }
+  // ---------- Notations : chaque symbole défini avant d'être utilisé (glossaire dans js/data/glossary.js) ----------
+  function notationList(text, sec, { full = false, only = null } = {}) {
+    const ch = C.sections[sec].ch, list = C.notationsIn(text, ch);
+    return list.map(g => {
+      const f = C.firstUse(g, ch), isNew = !f || f === sec;
+      if (only && (only === 'new') !== isNew) return '';
+      const where = !full ? '' : isNew ? ' <span class="tag new">nouveau ici</span>' : ` <a class="link small" href="#course/${f}">introduit dans « ${esc(C.sections[f].title)} »</a>`;
+      return `<div class="nt"><dt>$${g.sym}$</dt><dd><b>${esc(g.name)}</b>${where}<br>${g.def}</dd></div>`;
+    }).join('');
+  }
+  // Encadré d'une fiche : les symboles nouveaux en détail, les rappels repliés sur une ligne
+  function notationsBox(sec, open) {
+    const s = C.sections[sec], text = s.fiche + ' ' + s.summary, ch = s.ch;
+    const all = C.notationsIn(text, ch), isNew = g => { const f = C.firstUse(g, ch); return !f || f === sec; };
+    if (!all.length) return '';
+    const olds = all.filter(g => !isNew(g)), news = all.length - olds.length;
+    const fresh = notationList(text, sec, { full: true, only: 'new' }), rec = notationList(text, sec, { full: true, only: 'old' });
+    return `<details class="notations" ${open ? 'open' : ''}><summary><span class="eyebrow">Les notations de cette fiche</span><span class="muted small">${news ? `${news} nouvelle${news > 1 ? 's' : ''}` : 'aucune nouvelle'}${olds.length ? `, ${olds.length} déjà vue${olds.length > 1 ? 's' : ''}` : ''} · <a class="link" href="#glossary">tout le glossaire</a></span></summary>
+      ${fresh ? `<dl>${fresh}</dl>` : '<p class="small muted" style="margin:10px 0 0">Aucun nouveau symbole : tout ce qui sert ici a été défini dans les notions précédentes.</p>'}
+      ${rec ? `<details class="nt-old"><summary><b>Rappels</b> <span class="muted">(déjà vus)</span> : ${olds.map(g => `$${g.sym}$`).join(' · ')}</summary><dl>${rec}</dl></details>` : ''}</details>`;
+  }
+  // Bouton repliable « Notations » sous une question de carte ou d'exercice
+  function notationsToggle(text, sec) {
+    const html = notationList(text, sec);
+    return html ? `<details class="nt-inline"><summary>${icon('bulb')} Notations utilisées</summary><dl>${html}</dl></details>` : '';
   }
   const secLink = (id, extra = '') => `<a class="link" href="#course/${id}">${esc(C.sections[id].title)}</a>${extra}`;
 
@@ -410,7 +436,7 @@
       const doneN = total - queue.length - 1;
       box.innerHTML = `
         <div class="meta"><span>${esc(chOf(cur.sec).short)}</span><div class="meter"><i style="width:${Math.min(100, doneN / Math.max(1, total) * 100)}%"></i></div><span>${isNew ? '<span class="tag new">Nouvelle</span>' : `${queue.length} restante${queue.length > 1 ? 's' : ''}`}</span></div>
-        <div class="card-face"><span class="eyebrow">${esc(s.title)}</span><div class="card-q">${cur.q}</div>
+        <div class="card-face"><span class="eyebrow">${esc(s.title)}</span><div class="card-q">${cur.q}</div><div id="cNot">${notationsToggle(cur.q, cur.sec)}</div>
           <div class="recall"><textarea id="cIn" rows="2" placeholder="Ta réponse (facultatif) : écrire force à préciser"></textarea><button class="mic small-mic" id="cMic" title="Répondre à voix haute"></button></div>
           <div id="cBack"></div>
           <div class="row" id="cBtns"><button class="btn" id="cFlip">${icon('flip')} Retourner la carte</button></div></div>
@@ -426,6 +452,7 @@
     function flip() {
       flipped = true;
       if (currentListener) currentListener.stop();
+      $('#cNot').innerHTML = notationsToggle(cur.q + ' ' + cur.a, cur.sec);
       $('#cBack').innerHTML = `<div class="card-a">${cur.a}</div><a class="link small" href="#course/${cur.sec}">Revoir la fiche</a>`;
       $('#cBtns').innerHTML = `<button class="btn bad" id="cBad">${icon('x')} À revoir</button><button class="btn good" id="cGood">${icon('check')} Je savais</button>`;
       $('#cBad').onclick = () => grade(false);
@@ -514,7 +541,7 @@
       const order = it.opts ? (it.keepOrder ? it.opts.map((_, k) => k) : shuffle(it.opts.map((_, k) => k))) : null;
       box.innerHTML = `<div class="meta"><span>Exercice</span><div class="meter"><i style="width:${i / items.length * 100}%"></i></div><span>${i + 1} / ${items.length}</span></div>
         <span class="eyebrow accent">${esc(chOf(it.sec).short)} · ${esc(s.title)}${it.ai ? ' · IA' : ''}</span>
-        <div class="q-text">${it.q}</div>
+        <div class="q-text">${it.q}</div>${notationsToggle(it.q + ' ' + (it.opts || []).join(' '), it.sec)}
         ${order ? `<div class="opts-col">${order.map(k => `<button class="opt" data-k="${k}">${it.opts[k]}</button>`).join('')}</div>` : `
         <div class="answer-row"><input id="qIn" inputmode="decimal" autocomplete="off" placeholder="Ta réponse${it.unit ? ' (' + esc(it.unit) + ')' : ''}"><button class="btn" id="qCheck">Vérifier</button></div>
         <p class="muted small">Virgule ou point acceptés. Calculatrice autorisée, comme à l’examen.</p>`}
@@ -565,12 +592,33 @@
   // =====================================================================
   // FICHES : chapitres, notions, et la page d'une notion
   // =====================================================================
+  const courseTabs = active => `<div class="tabs"><a class="${active === 'ch' ? 'active' : ''}" href="#course">Chapitres</a><a class="${active === 'gl' ? 'active' : ''}" href="#glossary">Glossaire des notations</a></div>`;
+  routes.glossary = () => {
+    area = 'conv';
+    view.innerHTML = head('Cours', 'Glossaire des notations', 'Chaque symbole du cours, comment le lire et ce qu’il désigne. Un même symbole peut changer de sens d’un chapitre à l’autre : le glossaire est donc rangé par chapitre, et chaque entrée renvoie à la notion où le symbole apparaît pour la première fois.')
+      + courseTabs('gl') + `<label class="field"><span>Chercher</span><input id="glQ" placeholder="ex. epsilon, i.i.d., regret, ACF"></label>`
+      + spaceChs().map(ch => {
+        const text = ch.sections.map(id => C.sections[id].fiche + ' ' + C.sections[id].summary).join(' ');
+        const list = C.notationsIn(text, ch.id).sort((a, b) => ch.sections.indexOf(C.firstUse(a, ch.id)) - ch.sections.indexOf(C.firstUse(b, ch.id)));
+        return list.length ? `<section class="section gl-ch"><div class="section-head"><h2>${esc(ch.short)}</h2><span class="muted small">${list.length} notations</span></div><dl class="gl">${list.map(g => {
+          const f = C.firstUse(g, ch.id);
+          return `<div class="nt" data-s="${esc((g.name + ' ' + g.sym).toLowerCase())}"><dt>$${g.sym}$</dt><dd><b>${esc(g.name)}</b>${f ? ` <a class="link small" href="#course/${f}">${esc(C.sections[f].title)}</a>` : ''}<br>${g.def}</dd></div>`;
+        }).join('')}</dl></section>` : '';
+      }).join('');
+    // Recherche : aussi par nom LaTeX (« epsilon » trouve \epsilon)
+    $('#glQ').oninput = e => {
+      const q = e.target.value.trim().toLowerCase();
+      $$('.gl .nt').forEach(el => el.style.display = !q || el.dataset.s.includes(q) ? '' : 'none');
+      $$('.gl-ch').forEach(sct => sct.style.display = $$('.nt', sct).some(el => el.style.display !== 'none') ? '' : 'none');
+    };
+  };
+
   routes.course = (sec) => {
     area = 'conv';
     if (sec && C.sections[sec]) return secView(sec);
     const proj = curSpace() === 'projet';
     view.innerHTML = head(proj ? 'Espace Projet' : 'Cours', 'Les chapitres', proj ? 'Ce qu’il faut maîtriser à fond pour le projet et le TFE : Active learning, puis Bandits, puis le cas TFE. Chaque notion va de l’idée au savoir-faire chiffré, puis à la version précise et au lien avec la banque.' : 'Les chapitres actifs alimentent ta séance du jour, notion par notion, dans l’ordre du cours. Active un chapitre pas encore vu pour prendre de l’avance.')
-      + spaceChs().map(ch => {
+      + courseTabs('ch') + spaceChs().map(ch => {
         const on = activeChs().includes(ch.id), nRead = ch.sections.filter(isRead).length;
         return `<div class="chapter ${on ? 'on' : ''}">
           <div class="chapter-head"><div><span class="eyebrow">${ch.space === 'projet' ? 'Espace Projet' : ch.seen ? `Vu en cours le ${new Date(ch.seen).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long' })}` : 'Pas encore vu en cours'} · ${esc(ch.source)}</span>
@@ -602,6 +650,7 @@
       <div class="page-head"><span class="eyebrow">${esc(ch.short)} · notion ${idx + 1} / ${ch.sections.length}${s.slides ? ` · slides ${esc(s.slides)}` : ''}</span><h1>${esc(s.title)}</h1></div>
       ${stageBar(sec, true)}
       <div class="idea"><span class="eyebrow">L’idée en une phrase</span><p>${esc(s.summary)}</p></div>
+      ${notationsBox(sec, !read)}
       <article class="panel fiche">${s.fiche}</article>
       ${(s.notes || []).length ? `<section class="notes"><div class="section-head"><h2>Tes notes de cours</h2><span class="muted small">reprises de ton PDF annoté</span></div>
         ${s.notes.map(n => `<div class="note"><span class="eyebrow">Slide ${n.p}</span><p>« ${esc(n.t)} »</p>${n.fix ? `<p class="fix-note">${icon('bulb')} <b>Relecture :</b> ${esc(n.fix)}</p>` : ''}</div>`).join('')}</section>` : ''}

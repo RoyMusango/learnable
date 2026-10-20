@@ -13,20 +13,64 @@
     pitch: 'Peut-on apprendre à partir d’un nombre fini d’exemples, et avec quelle garantie ? Risque, classifieur de Bayes, PAC-learning, Hoeffding, fonction de croissance, dimension VC.',
     sections: [
       {
+        id: 'slt-prereq', title: 'Rappels et notations : la boîte à outils', slides: 'prérequis',
+        summary: 'Variable aléatoire, loi, probabilité, espérance, indicatrice, échantillon i.i.d., estimation, ε et δ : le vocabulaire probabiliste sur lequel tout le chapitre est construit.',
+        fiche: R`
+<p>Ce chapitre parle de probabilités du début à la fin. Avant les théorèmes, voici chaque objet et chaque symbole, dans l’ordre où ils serviront, avec un exemple fil rouge : <b>une banque qui veut prédire si un client remboursera son crédit</b>.</p>
+<h4>1. Variable aléatoire et loi</h4>
+<div class="def"><b>Variable aléatoire</b> : une quantité dont la valeur dépend du hasard. On la note en <b>majuscule</b> ($X$, $Y$) ; une valeur observée se note en <b>minuscule</b> ($x$, $y$).<br>
+Exemple : $X$ = le dossier du prochain client (revenu, âge, dettes…), $Y$ = 1 s’il fera défaut, 0 s’il rembourse.</div>
+<div class="def"><b>Loi</b> (ou distribution) : la description complète du hasard, c’est-à-dire quelles valeurs sont possibles et avec quelles probabilités. On la note $P$. « $X\sim P$ » se lit « $X$ suit la loi $P$ ».</div>
+<h4>2. Probabilité et probabilité conditionnelle</h4>
+<p>$\mathbb P[A]$ : la probabilité de l’événement $A$, un nombre entre 0 et 1. Exemple : $\mathbb P[Y=1]=0{,}08$ si 8 % des clients font défaut.</p>
+<p>$\mathbb P(A\mid B)$ se lit « probabilité de $A$ <b>sachant</b> $B$ » : on ne regarde que les cas où $B$ est vrai. Exemple : $\mathbb P(Y=1\mid X=x)$ est la probabilité de défaut <b>pour un client qui a exactement le dossier $x$</b> : 0,02 pour un dossier solide, 0,6 pour un dossier fragile.</p>
+<h4>3. Espérance et variance</h4>
+<div class="def"><b>Espérance</b> $\mathbb E[Z]$ : la moyenne théorique de $Z$, celle qu’on obtiendrait en moyennant une infinité de tirages. Si $Z$ vaut $z_k$ avec probabilité $p_k$ : $\mathbb E[Z]=\sum_kp_kz_k$, une somme pondérée (avec une densité, la somme devient une intégrale $\int z\,dP$). On écrit $\mathbb E_{X\sim P}[\cdot]$ pour préciser selon quelle loi on moyenne.<br>
+<b>Variance</b> : $\mathrm{Var}(Z)=\mathbb E\big[(Z-\mathbb E[Z])^2\big]$, l’écart moyen au carré à la moyenne, c’est-à-dire la dispersion.</div>
+<p>Exemple : pour un dé équilibré, $\mathbb E[Z]=\frac{1+2+3+4+5+6}{6}=3{,}5$, alors qu’aucun lancer ne donne 3,5.</p>
+<h4>4. L’indicatrice : transformer un événement en nombre</h4>
+<div class="def">$\mathbb 1[A]$ vaut 1 si $A$ est vrai, 0 sinon. Exemple : $\mathbb 1[g(x)\neq y]$ vaut 1 quand le classifieur $g$ se trompe sur l’exemple $(x,y)$.<br>
+Deux propriétés qui reviendront sans cesse : la <b>moyenne</b> de plusieurs indicatrices est une <b>proportion</b> (la fraction d’erreurs), et l’<b>espérance</b> d’une indicatrice est une <b>probabilité</b> : $\mathbb E\big[\mathbb 1[A]\big]=\mathbb P[A]$.</div>
+<h4>5. Échantillon i.i.d.</h4>
+<div class="def"><b>i.i.d.</b> signifie <b>indépendants et identiquement distribués</b>. Des tirages $Z_1,\dots,Z_n$ sont i.i.d. s’ils sont
+<ul><li><b>identiquement distribués</b> : chacun suit la même loi $P$ (les clients viennent de la même population) ;</li>
+<li><b>indépendants</b> : connaître l’un n’apprend rien sur les autres (comme des lancers de dé successifs).</li></ul>
+La loi de l’ensemble des $n$ tirages se note $P^n$.</div>
+<div class="def"><b>L’échantillon</b> $S_n=\{(X_1,Y_1),\dots,(X_n,Y_n)\}$ : les $n$ exemples étiquetés dont on dispose pour apprendre (S pour <i>sample</i>, $n$ pour leur nombre). Exemple : les 5000 anciens crédits dont on connaît l’issue. L’indice $i$ numérote les exemples : $(X_i,Y_i)$ est le $i$-ème.</div>
+<p>Pourquoi c’est crucial : toute la théorie suppose que les données d’entraînement et les futurs cas viennent de la <b>même</b> loi $P$, tirés indépendamment. Si la population change (crise, nouvelle clientèle), les garanties ne tiennent plus.</p>
+<h4>6. Estimer : le chapeau</h4>
+<p>Une quantité théorique inconnue s’écrit sans chapeau ($\mu$ : la vraie moyenne) ; son estimation calculée sur les données porte un chapeau et souvent l’indice $n$ : $\hat\mu_n=\frac1n\sum_{i=1}^nZ_i$, la <b>moyenne empirique</b>. Le symbole $\sum_{i=1}^n$ se lit « somme pour $i$ allant de 1 à $n$ ».</p>
+<h4>7. Les deux paramètres de toute garantie : ε et δ</h4>
+<div class="def"><b>$\epsilon$ (epsilon), la précision</b> : l’écart toléré entre l’estimation et la vérité ; « à 2 points de pourcentage près » donne $\epsilon=0{,}02$.<br>
+<b>$\delta$ (delta), le risque</b> : la probabilité que la garantie échoue (échantillon malchanceux) ; $1-\delta$ est la <b>confiance</b>, et $\delta=0{,}05$ donne 95 %.<br>
+Une garantie se lit alors : « avec probabilité au moins $1-\delta$, l’erreur est au plus $\epsilon$ ». On écrit $\epsilon(n)$ pour souligner que cette erreur garantie <b>dépend du nombre d’exemples $n$</b> : elle diminue quand on ajoute des données.</div>
+<h4>8. Les petits symboles</h4>
+<table><tr><th>Symbole</th><th>Se lit</th><th>Sens</th></tr>
+<tr><td>$\forall\epsilon>0$</td><td>« pour tout epsilon positif »</td><td>l’énoncé vaut quelle que soit la précision choisie</td></tr>
+<tr><td>$\arg\min_{g\in\mathcal H}f(g)$</td><td>« argmin »</td><td>l’élément $g$ de $\mathcal H$ qui rend $f$ la plus petite ($\min$ donne la valeur, $\arg\min$ donne le gagnant)</td></tr>
+<tr><td>$O(\cdot)$, $\sim$</td><td>« grand O », « de l’ordre de »</td><td>croissance à une constante près : $O(1/\sqrt n)$ est divisé par 2 quand $n$ est multiplié par 4</td></tr>
+<tr><td>$\ln$, $e^{x}$</td><td>logarithme népérien, exponentielle</td><td>$\ln(e^x)=x$ ; $e^{-2n\epsilon^2}$ devient vite minuscule quand $n$ grandit</td></tr>
+<tr><td>$\lim_{n\to\infty}$</td><td>« limite quand $n$ tend vers l’infini »</td><td>ce qui se passe avec une quantité illimitée de données</td></tr>
+<tr><td>$\binom ni$</td><td>« $i$ parmi $n$ »</td><td>nombre de façons de choisir $i$ objets parmi $n$</td></tr>
+<tr><td>$|A|$</td><td>cardinal, ou valeur absolue</td><td>nombre d’éléments d’un ensemble ; pour un nombre, sa distance à 0</td></tr></table>`,
+        notes: [],
+      },
+      {
         id: 'slt-intro', title: 'Apprendre : le cadre supervisé', slides: '3-13',
-        summary: 'Données i.i.d. tirées d’une loi P inconnue, classe d’hypothèses H, algorithme A, fonction de perte, sur-apprentissage.',
+        summary: 'Un échantillon de n exemples tirés au hasard (i.i.d.) d’une loi P inconnue, une classe H de classifieurs candidats, un algorithme qui en choisit un, une perte qui compte les erreurs. Bon sur les données mais mauvais ailleurs : sur-apprentissage.',
         fiche: R`
 <p><b>Apprendre</b>, c’est utiliser l’expérience passée pour décider dans le futur. Le <b>machine learning</b> remplace la connaissance d’un expert par des données et des exemples.</p>
-<p>Valiant (1984, <i>A theory of the learnable</i>) pose trois exigences : une machine doit pouvoir apprendre des <b>classes entières</b> de concepts (que l’on sait caractériser), ces classes doivent être utiles et non triviales, et l’apprentissage doit prendre un nombre <b>polynomial</b> d’étapes.</p>
-<div class="def"><b>Cadre supervisé</b>
-<ul><li>$\mathcal X$ : espace des entrées (ex. $\mathbb R^2$) ; $\mathcal Y$ : espace des étiquettes (ex. $\{0,1\}$).</li>
-<li>Une loi $P$ <b>inconnue</b> sur $\mathcal X\times\mathcal Y$.</li>
-<li>Un échantillon i.i.d. de taille finie $S_n=\{(X_1,Y_1),\dots,(X_n,Y_n)\}\sim P^n$.</li>
-<li>Une hypothèse (classifieur, concept) $f:\mathcal X\to\mathcal Y$, choisie dans une classe $\mathcal H$ : linéaires, linéaires par morceaux, réseaux de neurones…</li>
-<li>Un algorithme $\mathcal A:(\mathcal X\times\mathcal Y)^n\to\mathcal H,\ S_n\mapsto \hat g_n$.</li>
-<li>Une fonction de perte, par exemple la perte 0/1 : $\ell(\hat g_n(x),h(x))=\mathbb 1[\hat g_n(x)\neq h(x)]$.</li></ul></div>
-<p><b>But</b> : construire $\hat g_n$ qui marche bien <b>sur l’échantillon</b> (in-sample) <b>et sur les autres points</b> (out-of-sample). Bon sur $S_n$ mais mauvais ailleurs : c’est le <b>sur-apprentissage</b>.</p>
-<p><b>Exemple extrême</b> : $\hat g_n(x)=y_i$ si $x=x_i$ pour un $i$, et $0$ sinon. Zéro erreur sur les données, aucune généralisation : il a seulement mémorisé. D’où la nécessité de choisir une classe $\mathcal H$ adaptée au problème, ce qui introduit un <b>biais inductif</b>.</p>`,
+<p>Valiant (1984, <i>A theory of the learnable</i>) pose trois exigences : une machine doit pouvoir apprendre des <b>classes entières</b> de concepts (que l’on sait caractériser), ces classes doivent être utiles et non triviales, et l’apprentissage doit prendre un nombre <b>polynomial</b> d’étapes (pas un temps qui explose).</p>
+<p>Le cadre se construit en six pièces. On garde l’exemple de la banque qui prédit le remboursement d’un crédit (les notations de base sont dans la première notion, « Rappels et notations »).</p>
+<div class="def"><b>Le cadre supervisé, pièce par pièce</b>
+<ol><li><b>Les espaces.</b> $\mathcal X$ (« X cursif ») est l’ensemble de toutes les entrées possibles : tous les dossiers imaginables, par exemple $\mathbb R^2$ si un dossier se résume au couple (revenu, dette). $\mathcal Y$ est l’ensemble des étiquettes possibles : $\{0,1\}$ (rembourse, fait défaut).</li>
+<li><b>La loi inconnue</b> $P$ sur $\mathcal X\times\mathcal Y$, l’ensemble des couples (dossier, issue). Elle dit à la fois quels dossiers se présentent et comment l’issue en dépend. On ne la connaît <b>jamais</b> : c’est tout le problème.</li>
+<li><b>L’échantillon</b> $S_n=\{(X_1,Y_1),\dots,(X_n,Y_n)\}$ : $n$ couples tirés <b>i.i.d.</b> selon $P$ (indépendants, de même loi), ce qui s’écrit $S_n\sim P^n$. Ce sont nos $n$ anciens crédits dont on connaît l’issue.</li>
+<li><b>Les hypothèses.</b> Une hypothèse (ou classifieur, ou concept) est une fonction $f:\mathcal X\to\mathcal Y$ qui prédit une étiquette pour chaque entrée. On la cherche dans une <b>classe</b> $\mathcal H$ (« H cursif ») fixée à l’avance : tous les classifieurs linéaires, tous les réseaux d’une architecture donnée… Dans la suite, $h$ désigne le <b>vrai</b> classifieur (celui qui donne les vraies étiquettes, inconnu) et $g$ un classifieur <b>candidat</b>.</li>
+<li><b>L’algorithme</b> $\mathcal A$ prend l’échantillon et renvoie un classifieur : $\mathcal A:S_n\mapsto\hat g_n\in\mathcal H$. Le chapeau signifie « construit à partir des données », l’indice $n$ « avec $n$ exemples ». (Écriture complète : $\mathcal A:(\mathcal X\times\mathcal Y)^n\to\mathcal H$, l’ensemble de départ étant tous les échantillons possibles de taille $n$.)</li>
+<li><b>La perte</b> $\ell$ (« ell ») mesure le coût d’une prédiction. La plus simple est la <b>perte 0/1</b> : $\ell(\hat g_n(x),h(x))=\mathbb 1[\hat g_n(x)\neq h(x)]$, qui vaut 1 en cas d’erreur et 0 sinon.</li></ol></div>
+<p><b>But</b> : construire $\hat g_n$ qui marche bien <b>sur l’échantillon</b> (in-sample) <b>et sur les nouveaux cas</b> (out-of-sample). Bon sur $S_n$ mais mauvais ailleurs : c’est le <b>sur-apprentissage</b>.</p>
+<p><b>Exemple extrême</b> : le « mémoriseur » $\hat g_n(x)=y_i$ si $x$ est exactement le dossier $x_i$ d’un exemple de l’échantillon, et $0$ sinon. Zéro erreur sur les données, aucune généralisation : face à un nouveau client, il répond toujours 0. Il faut donc restreindre la classe $\mathcal H$ à des fonctions « raisonnables » pour le problème ; ce choix fait a priori s’appelle le <b>biais inductif</b>.</p>`,
         notes: [
           { p: 8, t: 'Distribution de prob inconnue = on ne sait pas comment sont distribués (labellisés) nos points.', fix: 'Exact, et plus précisément : P est une loi jointe sur (X, Y). On ne connaît ni la répartition des points x, ni la façon dont les étiquettes y en dépendent (η(x) = P(Y=1|X=x)).' },
           { p: 9, t: 'Le but du jeu est de trouver une fonction d’hypothèse H qui à partir des données nous donne le label d’un point. Il y en a de plusieurs types : plus proches voisins, réseaux de neurones, etc. Ce choix de type dépend de plusieurs points.', fix: 'Attention à la notation : H est la classe (l’ensemble) d’hypothèses ; la fonction que l’on cherche est un élément f (ou g) de H.' },
@@ -37,17 +81,20 @@
         id: 'slt-risk', title: 'Risque théorique, risque empirique, ERM', slides: '14-18, 26',
         summary: 'R(g) est une espérance sous P (inconnue) ; Rn(g) en est la moyenne empirique sur Sn. On minimise ce qu’on peut calculer : Rn.',
         fiche: R`
-<p>La vraie mesure de l’erreur est l’<b>espérance de la perte</b>, appelée <b>risque théorique</b> : $R(g)=\mathbb E_{X\sim P}[\ell(h(X),g(X))]$.</p>
-<p>Deux obstacles : la loi $P$ est inconnue, et on n’a qu’un échantillon fini $S_n$. On approche donc $R$ par le <b>risque empirique</b> :</p>
+<p><b>Comment juger un classifieur candidat $g$ ?</b> En moyennant sa perte sur <b>tous</b> les cas possibles, chacun pondéré par sa probabilité. C’est l’<b>espérance de la perte</b>, appelée <b>risque théorique</b> :
+$$R(g)=\mathbb E_{X\sim P}\big[\ell(h(X),g(X))\big]\qquad(h\text{ : le vrai classifieur}).$$
+Avec la perte 0/1, c’est tout simplement la <b>probabilité que $g$ se trompe</b> sur un nouveau client.</p>
+<p>Deux obstacles : la loi $P$ est inconnue, et on n’a qu’un échantillon fini $S_n$. On approche donc $R$ par le <b>risque empirique</b>, la perte moyenne sur les $n$ exemples de l’échantillon :</p>
 $$R_n(g)=\frac1n\sum_{i=1}^n \ell(h(x_i),g(x_i)).$$
-<p>C’est exactement le lien moyenne théorique / moyenne empirique : $\mu=\mathbb E[f(X)]=\int f\,dp$ et $\hat\mu_n=\frac1n\sum f(x_i)$.</p>
-<div class="def"><b>Classification binaire, perte 0/1</b>
-$$R(g)=\mathbb P[Y\neq g(X)],\qquad R_n(g)=\frac1n\sum_{i=1}^n \mathbb 1[g(X_i)\neq Y_i].$$</div>
-<p>$R_n$ <b>dépend de l’échantillon</b> (c’est une variable aléatoire) ; $R$ non. Si le vrai classifieur est dans $\mathcal H$, le meilleur de $\mathcal H$ a un risque nul : apprentissage <b>réalisable</b>. En général $R(g_{\mathcal H})\ge 0$ : apprentissage <b>agnostique</b>.</p>
-<div class="def"><b>Trois classifieurs à ne pas confondre</b>
-<ul><li>$g^*_{\mathcal H}=\arg\min_{g\in\mathcal H} R(g)$ : le meilleur de la classe (inconnu).</li>
-<li>$g^*_n=\arg\min_{g\in\mathcal H} R_n(g)$ : le meilleur sur les données. C’est la <b>minimisation du risque empirique (ERM)</b>.</li>
-<li>$g^*=\arg\min_{g} R(g)$ sur <b>toutes</b> les fonctions : le classifieur de <b>Bayes</b>, oracle théorique, pas forcément dans $\mathcal H$.</li></ul></div>`,
+<p>C’est exactement le passage de la moyenne théorique à la moyenne empirique : pour une fonction quelconque $f$, $\mu=\mathbb E[f(X)]=\int f\,dP$ est estimée par $\hat\mu_n=\frac1n\sum_{i=1}^n f(x_i)$.</p>
+<div class="def"><b>Classification binaire, perte 0/1</b> ($\mathcal Y=\{0,1\}$)
+$$R(g)=\mathbb P[Y\neq g(X)],\qquad R_n(g)=\frac1n\sum_{i=1}^n \mathbb 1[g(X_i)\neq Y_i].$$
+En mots : $R(g)$ est la probabilité d’erreur sur un nouveau cas, $R_n(g)$ la <b>fraction d’erreurs</b> sur l’échantillon.</div>
+<p>$R_n$ <b>dépend de l’échantillon</b> : un autre tirage donnerait une autre valeur, c’est une variable aléatoire. $R$, lui, est un nombre fixe (mais inconnu). Notons $g_{\mathcal H}$ le meilleur classifieur de la classe. Si le vrai classifieur est dans $\mathcal H$, alors $R(g_{\mathcal H})=0$ : apprentissage <b>réalisable</b>. En général $R(g_{\mathcal H})\ge 0$ : apprentissage <b>agnostique</b> (« sans croyance » sur la forme de la vérité).</p>
+<div class="def"><b>Trois classifieurs à ne pas confondre</b> (l’étoile $^*$ marque un optimum ; $\arg\min$ renvoie le classifieur qui atteint le minimum)
+<ul><li>$g^*_{\mathcal H}=\arg\min_{g\in\mathcal H} R(g)$ : le meilleur de la classe, au sens du vrai risque (inconnu).</li>
+<li>$g^*_n=\arg\min_{g\in\mathcal H} R_n(g)$ : le meilleur sur les données. Le choisir, c’est la <b>minimisation du risque empirique</b> (ERM, <i>Empirical Risk Minimization</i>).</li>
+<li>$g^*=\arg\min_{g} R(g)$ sur <b>toutes</b> les fonctions possibles : le classifieur de <b>Bayes</b>, un oracle théorique, pas forcément dans $\mathcal H$.</li></ul></div>`,
         notes: [
           { p: 14, t: 'On suppose que le jeu de données a été généré par une distrib de prob. L’espérance entre le vrai classifier h(X) et celui calculé par l’algo g(X) donne ce qu’on appelle le risque théorique. On ne connaît pas la vraie distrib statistique donc on ne peut pas calculer le vrai risque théorique. On calcule donc le risque empirique.', fix: 'Précision : c’est l’espérance de la perte ℓ(h(X), g(X)), pas l’espérance « entre » h et g.' },
           { p: 17, t: 'R = risque théorique (inconnu donc minimum théorique est inconnu mais pas forcément à 0).' },
@@ -79,14 +126,14 @@ $$R(g^*)=1-\mathbb E\big[\mathbb 1[\eta>\tfrac12]\,\eta+\mathbb 1[\eta\le\tfrac1
         id: 'slt-decomp', title: 'Approximation et estimation : les questions de la théorie', slides: '24-25',
         summary: 'L’excès de risque = approximation (biais, dépend de H) + estimation (variance, dépend de n et de la taille de H).',
         fiche: R`
-<p>$P$ étant inconnue, on ne peut pas calculer $g^*$. On voudrait une garantie <b>avec grande probabilité</b> du type $R(g_n)\le R(g^*)+\epsilon$.</p>
+<p>$P$ étant inconnue, on ne peut pas calculer $g^*$. On voudrait une garantie <b>avec grande probabilité</b> du type $R(g^*_n)\le R(g^*)+\epsilon$ : « le classifieur appris ne se trompe pas plus que l’oracle, à $\epsilon$ près ». Cet écart $R(g^*_n)-R(g^*)$ s’appelle l’<b>excès de risque</b>, et il se coupe en deux :</p>
 $$R(g^*_n)-R(g^*)=\underbrace{R(g^*_{\mathcal H})-R(g^*)}_{\text{approximation}\ \approx\ \text{biais}}+\underbrace{R(g^*_n)-R(g^*_{\mathcal H})}_{\text{estimation}\ \approx\ \text{variance}}$$
-<ul><li><b>Approximation</b> : ce que l’on perd en se limitant à $\mathcal H$. Diminue quand $\mathcal H$ grandit.</li>
-<li><b>Estimation</b> : ce que l’on perd parce que $n$ est fini. Augmente quand $\mathcal H$ grandit (plus de candidats pour « coller » au hasard de l’échantillon).</li></ul>
+<ul><li><b>Approximation</b> : ce que l’on perd en se limitant à la classe $\mathcal H$ (même le meilleur de la classe n’est pas l’oracle). Diminue quand $\mathcal H$ grandit.</li>
+<li><b>Estimation</b> : ce que l’on perd parce que $n$ est fini (on choisit sur l’échantillon, pas sur la vraie loi). Augmente quand $\mathcal H$ grandit : plus de candidats pour « coller » au hasard de l’échantillon.</li></ul>
 <p>C’est le compromis biais-variance vu sous l’angle du risque.</p>
 <div class="def"><b>Les quatre questions de la théorie statistique de l’apprentissage</b>
-<ol><li>Apprendre à partir d’un échantillon fini, est-ce <b>faisable</b> ?</li><li>Quels concepts ($\mathcal H$) peut-on apprendre ?</li><li>Combien de données $n$ faut-il ?</li><li>Quelles garanties sur l’erreur $\epsilon(n)$ ?</li></ol>
-Outil : le <b>PAC-learning</b> (Probably Approximately Correct).</div>`,
+<ol><li>Apprendre à partir d’un échantillon fini, est-ce <b>faisable</b> ?</li><li>Quels concepts (quelles classes $\mathcal H$) peut-on apprendre ?</li><li>Combien de données $n$ faut-il ?</li><li>Quelles garanties sur l’erreur $\epsilon(n)$, c’est-à-dire l’erreur que l’on peut garantir <b>en fonction du nombre d’exemples $n$</b> : à quelle vitesse baisse-t-elle quand on ajoute des données ?</li></ol>
+Outil : le <b>PAC-learning</b> (<i>Probably Approximately Correct</i>) : avec probabilité au moins $1-\delta$ (« probably »), l’erreur est au plus $\epsilon$ (« approximately correct »).</div>`,
         notes: [
           { p: 24, t: 'Tout l’enjeu c’est que epsilon soit petit, et qu’ainsi gn soit très proche de g*. Pour les réseaux de neurones c’est certes bien moins biaisé mais la variance est grande (difficile de déterminer le meilleur).' },
           { p: 25, t: 'Pour répondre à ces questions on va utiliser la théorie du PAC-Learning (PAC = Probably Approximately Correct).' },
@@ -96,11 +143,12 @@ Outil : le <b>PAC-learning</b> (Probably Approximately Correct).</div>`,
         id: 'slt-lln', title: 'Billes, dés et lois des grands nombres', slides: '28-31',
         summary: 'Estimer μ par ν = μ̂n : la LGN dit que ça converge quand n → ∞, mais on veut une garantie pour n fini.',
         fiche: R`
-<p><b>Analogie de l’urne</b> : une urne (infinie) contient une proportion $\mu$ inconnue de billes rouges. On tire $n$ billes et on observe la fraction $\nu=\hat\mu_n$. Peut-on « apprendre » $\mu$ à partir de $\nu$ ?</p>
+<p><b>Analogie de l’urne</b> : une urne (infinie) contient une proportion $\mu$ (« mu ») inconnue de billes rouges. On tire $n$ billes et on observe la fraction de rouges, notée $\nu$ (« nu ») ou $\hat\mu_n$. Peut-on « apprendre » $\mu$ à partir de $\nu$ ? C’est la même question que d’estimer le taux d’erreur d’un classifieur à partir d’un échantillon.</p>
 <p><b>Dé</b> : la moyenne cumulée des lancers tend vers $\mu=3{,}5$. Mais à quelle vitesse ?</p>
-<div class="thm"><b>Loi faible des grands nombres</b> (convergence en probabilité). $X_i$ i.i.d., $\mathbb E[X_i]=\mu$ : $\forall\epsilon>0,\ \lim_{n\to\infty}\mathbb P[|\hat\mu_n-\mu|\le\epsilon]=1$.<br>
-<b>Loi forte</b> (presque sûre) : $\mathbb P[\lim_{n\to\infty}\hat\mu_n=\mu]=1$.</div>
-<p>Ces résultats sont <b>asymptotiques</b>. Le théorème central limite donne en plus l’ordre de grandeur de l’écart : $\mu\pm\sqrt{\mathrm{Var}(X)/n}$, mais toujours pour $n\to\infty$ et en dépendant de la variance (inconnue).</p>
+<div class="thm"><b>Loi faible des grands nombres</b> (convergence en probabilité). $X_1,\dots,X_n$ i.i.d. de moyenne $\mathbb E[X_i]=\mu$ : pour tout $\epsilon>0$, $\lim_{n\to\infty}\mathbb P[|\hat\mu_n-\mu|\le\epsilon]=1$.<br>
+En mots : quelle que soit la précision $\epsilon$ demandée, la probabilité que la moyenne empirique soit à moins de $\epsilon$ de $\mu$ tend vers 1.<br>
+<b>Loi forte</b> (convergence presque sûre) : $\mathbb P[\lim_{n\to\infty}\hat\mu_n=\mu]=1$. En mots : la suite des moyennes finit par converger vers $\mu$, sauf sur des tirages de probabilité nulle.</div>
+<p>Ces résultats sont <b>asymptotiques</b> : ils décrivent $n\to\infty$, pas ce qui se passe avec 200 exemples. Le théorème central limite donne en plus l’ordre de grandeur de l’écart, $\mu\pm\sqrt{\mathrm{Var}(X)/n}$, mais toujours pour $n\to\infty$ et en dépendant de la variance (inconnue).</p>
 <p>On veut des garanties <b>non asymptotiques</b> (pour $n$ fini) et <b>indépendantes de la loi</b> : ce sont les inégalités de concentration.</p>`,
         notes: [
           { p: 28, t: 'Il faut imaginer que l’urne est infinie et qu’on n’a jamais accès à toutes les billes de l’urne.' },
@@ -111,13 +159,14 @@ Outil : le <b>PAC-learning</b> (Probably Approximately Correct).</div>`,
         id: 'slt-hoeffding', title: 'Inégalité de Hoeffding (3 versions)', slides: '32-38',
         summary: 'P[|μ̂n − μ| > ε] ≤ 2 exp(−2nε²), puis n ≥ ln(2/δ)/(2ε²) et ε = √(ln(2/δ)/(2n)). La précision coûte cher, la confiance non.',
         fiche: R`
+<p><b>La situation</b> : on observe $n$ valeurs i.i.d. $X_1,\dots,X_n$ comprises entre 0 et 1 (par exemple des indicatrices d’erreur), de vraie moyenne $\mu$ inconnue, et on calcule leur moyenne empirique $\hat\mu_n$. Question : quelle est la probabilité que $\hat\mu_n$ tombe <b>à plus de $\epsilon$</b> de $\mu$ ?</p>
 <div class="thm"><b>Hoeffding, version 1 (PAC).</b> $X_1,\dots,X_n$ i.i.d. à valeurs dans $[0,1]$, $\mathbb E[X_i]=\mu$. Pour tout $\epsilon>0$ :
 $$\mathbb P\big[|\hat\mu_n-\mu|>\epsilon\big]\le 2e^{-2n\epsilon^2}.$$</div>
 <ul><li>$\mu\approx\hat\mu_n$ est « probablement approximativement correct ».</li>
 <li>La borne ne dépend que de $n$ et $\epsilon$, <b>pas de la loi</b> des $X_i$ (ni de $\mu$, ni de la variance).</li>
 <li>Inégalité de <b>concentration</b> : la masse se concentre autour de la moyenne, avec une décroissance exponentielle.</li>
-<li>Compromis : $n\uparrow\Rightarrow e^{-2n\epsilon^2}\downarrow$ ; $\epsilon\downarrow\Rightarrow e^{-2n\epsilon^2}\uparrow\uparrow$.</li></ul>
-<p>On pose $\delta=2e^{-2n\epsilon^2}$ (le <b>risque</b>, $1-\delta$ = la confiance) et on isole $n$ ou $\epsilon$ :</p>
+<li>Compromis : plus d’exemples, borne plus petite ($n\uparrow\Rightarrow e^{-2n\epsilon^2}\downarrow$) ; plus de précision exigée, borne bien plus grande ($\epsilon\downarrow\Rightarrow e^{-2n\epsilon^2}\uparrow\uparrow$, car $\epsilon$ est au carré).</li></ul>
+<p>On appelle $\delta=2e^{-2n\epsilon^2}$ le <b>risque</b> (probabilité que la garantie échoue ; $1-\delta$ est la confiance). En isolant $n$ ou $\epsilon$ dans cette égalité, on obtient deux autres lectures du même résultat :</p>
 <div class="thm"><b>Version 2 (complexité d’échantillon).</b> Si $n\ge\dfrac{1}{2\epsilon^2}\ln\dfrac2\delta$, alors avec probabilité $\ge 1-\delta$ : $|\hat\mu_n-\mu|\le\epsilon$.</div>
 <div class="thm"><b>Version 3 (borne d’erreur).</b> Pour $n$ fixé, avec probabilité $\ge 1-\delta$ : $|\hat\mu_n-\mu|\le\epsilon$ avec $\epsilon=\sqrt{\dfrac{1}{2n}\ln\dfrac2\delta}\sim\dfrac1{\sqrt n}$.</div>
 <p><b>La précision coûte cher, la confiance ne coûte presque rien</b> :</p>
@@ -258,6 +307,14 @@ $$\epsilon=\sqrt{\frac1{2n}\ln\frac{2(en/d_{VC})^{d_{VC}}}{\delta}}\sim\sqrt{\fr
     ],
 
     cards: [
+      ['slt-prereq', 'iid', R`Que signifie « i.i.d. » et pourquoi est-ce essentiel ?`, R`Indépendants (connaître un tirage n’apprend rien sur les autres) et identiquement distribués (tous suivent la même loi $P$). Toute la théorie suppose que l’entraînement et les futurs cas viennent de la même loi, tirés indépendamment.`],
+      ['slt-prereq', 'Sn', R`Que désigne $S_n$ ?`, R`L’échantillon d’entraînement : les $n$ exemples étiquetés $\{(X_1,Y_1),\dots,(X_n,Y_n)\}$, tirés i.i.d. selon $P$ (S pour <i>sample</i>).`],
+      ['slt-prereq', 'esperance', R`Qu’est-ce que l’espérance $\mathbb E[Z]$ ? Donne un exemple.`, R`La moyenne théorique (sur une infinité de tirages) : $\sum_kp_kz_k$. Dé équilibré : $\mathbb E[Z]=3{,}5$.`],
+      ['slt-prereq', 'cond', R`Comment se lit $\mathbb P(Y=1\mid X=x)$ ?`, R`« Probabilité que $Y=1$ sachant que $X=x$ » : la probabilité de défaut pour un client qui a exactement le dossier $x$.`],
+      ['slt-prereq', 'indic', R`Indicatrice $\mathbb 1[A]$ : définition et deux propriétés clés ?`, R`Vaut 1 si $A$ est vrai, 0 sinon. Une moyenne d’indicatrices est une proportion ; $\mathbb E[\mathbb 1[A]]=\mathbb P[A]$.`],
+      ['slt-prereq', 'chapeau', R`Que signifie le chapeau, comme dans $\hat\mu_n$ ?`, R`Une estimation calculée sur les données (ici la moyenne empirique $\frac1n\sum_iZ_i$), par opposition à la vraie valeur inconnue $\mu$.`],
+      ['slt-prereq', 'eps-delta', R`Rôles de $\epsilon$, $\delta$ et $\epsilon(n)$ dans une garantie ?`, R`$\epsilon$ : précision (écart toléré). $\delta$ : risque que la garantie échoue, $1-\delta$ = confiance. $\epsilon(n)$ : l’erreur garantie en fonction du nombre d’exemples, qui diminue quand $n$ grandit.`],
+      ['slt-prereq', 'argmin', R`Différence entre $\min_{g}f(g)$ et $\arg\min_{g}f(g)$ ?`, R`$\min$ donne la plus petite valeur de $f$ ; $\arg\min$ donne l’élément $g$ qui l’atteint.`],
       ['slt-intro', 'valiant', R`Quelles sont les trois exigences de Valiant (1984) pour qu’une machine « apprenne » ?`, R`1) Apprendre des classes entières de concepts, que l’on sait caractériser. 2) Ces classes sont utiles et non triviales. 3) Un nombre polynomial d’étapes de calcul.`],
       ['slt-intro', 'cadre', R`Décris le cadre de l’apprentissage supervisé (5 ingrédients).`, R`$\mathcal X,\mathcal Y$ ; une loi $P$ inconnue sur $\mathcal X\times\mathcal Y$ ; un échantillon i.i.d. $S_n\sim P^n$ ; une classe $\mathcal H$ d’hypothèses $f:\mathcal X\to\mathcal Y$ ; un algorithme $\mathcal A:S_n\mapsto\hat g_n\in\mathcal H$ évalué par une perte $\ell$.`],
       ['slt-intro', 'overfit', R`Définition du sur-apprentissage, et l’exemple extrême du cours ?`, R`Bon sur l’échantillon, mauvais ailleurs. Exemple : $\hat g_n(x)=y_i$ si $x=x_i$, sinon 0 : zéro erreur sur les données, aucune généralisation (mémorisation).`],
@@ -325,6 +382,10 @@ $$\epsilon=\sqrt{\frac1{2n}\ln\frac{2(en/d_{VC})^{d_{VC}}}{\delta}}\sim\sqrt{\fr
     ],
 
     quiz: [
+      ['slt-prereq', R`Une banque entraîne son modèle sur les clients de 2019 et l’applique en pleine crise de 2020. Quelle hypothèse de la théorie est menacée ?`, ['les données ne sont plus identiquement distribuées (la loi a changé)', 'la perte n’est plus 0/1', 'l’échantillon est trop grand', 'la classe H est infinie'], 0, R`Les garanties supposent que les futurs cas suivent la même loi $P$ que l’échantillon.`],
+      ['slt-prereq', R`Sur 200 dossiers, un classifieur se trompe 14 fois. Que vaut la moyenne des indicatrices d’erreur $\frac1n\sum_i\mathbb 1[g(x_i)\neq y_i]$ ?`, ['0,07', '14', '0,14', '186'], 0, R`$14/200=0{,}07$ : la moyenne d’indicatrices est une proportion.`],
+      ['slt-prereq', R`$\delta=0{,}01$ dans une garantie PAC signifie :`, ['la garantie est vraie avec probabilité au moins 99 %', 'l’erreur est au plus 1 %', 'on a 1 % des données', 'la précision vaut 0,01'], 0, R`$\delta$ est le risque d’échec ; la confiance vaut $1-\delta=0{,}99$. La précision, c’est $\epsilon$.`],
+      ['slt-prereq', R`Une pièce donne 1 (pile) avec probabilité 0,3 et 0 sinon. $\mathbb E[Z]$ vaut :`, ['0,3', '0,5', '0,7', '1'], 0, R`$0{,}3\times1+0{,}7\times0=0{,}3$.`],
       ['slt-intro', R`Un classifieur a 0 % d’erreur sur ses données d’entraînement et 45 % sur de nouvelles données. C’est :`, ['du sur-apprentissage', 'du sous-apprentissage', 'le classifieur de Bayes', 'un apprentissage réalisable'], 0, R`Bon in-sample, mauvais out-of-sample : la définition même du sur-apprentissage.`],
       ['slt-intro', R`Dans le cadre supervisé, qu’est-ce qui est inconnu ?`, ['la loi P qui génère les données', 'l’échantillon S_n', 'la classe H', 'la fonction de perte'], 0, R`On choisit $\mathcal H$ et $\ell$, on observe $S_n$ ; seule $P$ reste inconnue.`],
       ['slt-intro', R`Pourquoi le « mémoriseur » $\hat g_n(x)=y_i$ si $x=x_i$ (sinon 0) ne généralise-t-il pas ?`, ['il n’impose aucune structure : sa classe est trop riche (pas de biais inductif)', 'il fait trop d’erreurs sur les données', 'il est trop lent', 'il suppose P connue'], 0, R`Il peut coller à n’importe quel échantillon : il n’apprend rien de la structure du problème.`],

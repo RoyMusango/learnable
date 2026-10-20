@@ -168,6 +168,7 @@ ${PROFILE}
 ${levelRule()}
 ${modes[mode] || modes.explain}
 Appuie-toi d’abord sur le contenu du cours ci-dessous (ce sont les fiches de l’étudiant, avec ses propres notes) ; signale clairement quand tu vas au-delà du cours. Si une note de l’étudiant contient une erreur, corrige-la. N’invente jamais de résultat : si tu n’es pas sûr d’une constante ou d’une référence, dis-le.
+Définis chaque notation la première fois que tu l’utilises (ce que désigne le symbole, en mots), et ne suppose jamais connu un symbole que l’étudiant n’a pas vu.
 Réponses courtes et denses (150 mots au plus sauf demande explicite), une idée par paragraphe.
 
 CONTENU DU COURS :
@@ -215,7 +216,7 @@ ${context}`;
   async function makeQuiz(context, n = 4) {
     const sys = `Tu rédiges des QCM de compréhension (pas de simple restitution) pour le cours Advanced Machine Learning.
 ${levelRule()}
-Chaque question teste un raisonnement : application chiffrée, cas limite, interprétation, piège classique. 4 propositions plausibles, la bonne en premier (elles seront mélangées). Uniquement à partir du contenu fourni.
+Chaque notation utilisée doit figurer dans le contenu fourni ou être définie dans l’énoncé. Chaque question teste un raisonnement : application chiffrée, cas limite, interprétation, piège classique. 4 propositions plausibles, la bonne en premier (elles seront mélangées). Uniquement à partir du contenu fourni.
 
 CONTENU :
 ${context}`;

@@ -183,3 +183,26 @@ table.left { text-align: left; margin-top: 24px; }
 .road-step.done b { color: var(--muted); text-decoration: line-through; }
 .road-step textarea { min-height: 38px; font-size: .85rem; }
 @media (max-width: 860px) { .road-step { grid-template-columns: 1fr; gap: 8px; } }
+
+/* Notations : encadré en tête de fiche, bouton des cartes et exercices, page Glossaire */
+.fiche h4:not([class]) { margin: 28px 0 10px; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); }
+.fiche h4:not([class]):first-of-type { margin-top: 18px; }
+.notations { border: 1px solid var(--line); border-left: 3px solid var(--accent-2); padding: 14px 20px; margin: 0 0 24px; }
+.notations > summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; list-style: none; }
+.notations > summary::-webkit-details-marker { display: none; }
+.notations > summary .eyebrow { margin: 0; color: var(--accent-2); }
+.notations > summary::after { content: '▾'; margin-left: auto; color: var(--muted); }
+.notations:not([open]) > summary::after { content: '▸'; }
+.notations dl, .nt-inline dl, dl.gl { margin: 12px 0 0; }
+.nt { display: grid; grid-template-columns: minmax(110px, 30%) 1fr; gap: 4px 18px; padding: 10px 0; border-top: 1px solid var(--line); }
+.nt dt { font-size: 1.05rem; overflow-x: auto; }
+.nt dd { margin: 0; font-size: .93rem; line-height: 1.55; color: var(--ink-2); }
+.nt dd b { color: var(--ink); }
+.nt .tag { margin: 0 0 0 6px; vertical-align: 1px; }
+.nt-inline { margin: -8px 0 18px; font-size: .9rem; }
+.nt-inline > summary { cursor: pointer; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+.nt-inline > summary:hover { color: var(--ink); }
+.nt-inline .nt { grid-template-columns: minmax(90px, 26%) 1fr; }
+@media (max-width: 860px) { .nt, .nt-inline .nt { grid-template-columns: 1fr; gap: 2px; } }
+.nt-old { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; font-size: .92rem; }
+.nt-old > summary { cursor: pointer; line-height: 1.9; color: var(--ink-2); }

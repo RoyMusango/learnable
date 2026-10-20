@@ -65,7 +65,7 @@ Si la série est stationnaire, $r_k$ estime $\rho_k=\mathrm{cov}(x_t,x_{t+k})/\m
         id: 'ts-stat', title: 'Processus stochastiques et stationnarité', slides: '02 · 3-30',
         summary: 'Une série observée = une réalisation finie d’un processus {Xt}. Stationnarité stricte (lois jointes invariantes) ou faible (moyenne, variance, covariances indépendantes de t). Bruit blanc ; la marche aléatoire n’est pas stationnaire.',
         fiche: R`
-<div class="def"><b>Processus stochastique</b> : famille de variables aléatoires $X_t$ sur un même espace $(\Omega,\mathcal A,\mathbb P)$, indexées par le temps. On observe <b>une seule réalisation</b> $\{x_t\}$, de durée finie : c’est toute la difficulté.</div>
+<div class="def"><b>Processus stochastique</b> : famille de variables aléatoires $X_t$ sur un même espace probabilisé $(\Omega,\mathcal A,\mathbb P)$ (les issues possibles du hasard $\Omega$, les événements dont on peut mesurer la probabilité $\mathcal A$, et la probabilité $\mathbb P$), indexées par le temps $t$. On observe <b>une seule réalisation</b> $\{x_t\}$, de durée finie : c’est toute la difficulté.</div>
 <p>Rappels : fonction de répartition $F_X(x)=\mathbb P(X\le x)$, densité, moments $\mathbb E[X^k]$. Égalité en loi $X\overset{\mathcal L}=Y$ n’implique pas $X=Y$ (pile/face et son inverse). Connaître un processus, c’est connaître toutes ses lois fini-dimensionnelles : trop dur, on se limite aux moments d’ordre 1 et 2.</p>
 <div class="def"><b>Stationnarité stricte</b> : les lois jointes sont invariantes par translation dans le temps.<br>
 <b>Stationnarité faible</b> (second ordre) : $\mathbb E(X_t)=\mu$, $\mathrm{Var}(X_t)=\sigma^2$, $\mathrm{Cov}(X_t,X_{t+k})=\gamma_k$, <b>indépendants de $t$</b>.<br>
