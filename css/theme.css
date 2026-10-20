@@ -206,3 +206,15 @@ table.left { text-align: left; margin-top: 24px; }
 @media (max-width: 860px) { .nt, .nt-inline .nt { grid-template-columns: 1fr; gap: 2px; } }
 .nt-old { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; font-size: .92rem; }
 .nt-old > summary { cursor: pointer; line-height: 1.9; color: var(--ink-2); }
+
+/* Espace TP : blocs de code copiables, solutions repliées, groupes de questions */
+pre.code { position: relative; background: #16161a; color: #e8e6e1; padding: 16px 18px; margin: 14px 0; overflow-x: auto; font: .84rem/1.55 Consolas, 'Cascadia Code', Menlo, monospace; border-radius: 2px; }
+pre.code[data-lang="texte"] { background: var(--surface); color: var(--ink); }
+pre.code .copy { position: absolute; top: 8px; right: 8px; font: 500 .68rem var(--font); text-transform: uppercase; letter-spacing: .1em; background: rgba(255,255,255,.12); color: inherit; border: 0; padding: 5px 9px; cursor: pointer; }
+pre.code[data-lang="texte"] .copy { background: var(--surface-2); }
+.fiche code, .small code, td code { font: .86em Consolas, Menlo, monospace; background: var(--surface); padding: 1px 4px; }
+pre.code code { background: none; padding: 0; font: inherit; }
+.sol-box { border: 1px dashed var(--accent); padding: 10px 16px; margin: 14px 0; }
+.sol-box > summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+.sol-box[open] > summary { margin-bottom: 8px; }
+.road-group { margin: 18px 0 6px; font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }

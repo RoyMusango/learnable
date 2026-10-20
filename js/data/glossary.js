@@ -5,7 +5,7 @@
 (function () {
   const R = String.raw;
   // Groupes de chapitres (les chapitres de l'espace Projet reprennent les notations du cours)
-  const SLT = ['slt', 'al', 'pj-al', 'pj-tfe'], AL = ['al', 'pj-al', 'pj-tfe'], BD = ['bd', 'pj-bd', 'pj-tfe'], RL = ['rl'], TS = ['ts'];
+  const SLT = ['slt', 'al', 'pj-al', 'pj-tfe', 'tp1', 'tp2'], AL = ['al', 'pj-al', 'pj-tfe', 'tp2'], BD = ['bd', 'pj-bd', 'pj-tfe', 'tp3'], RL = ['rl', 'tp4'], TS = ['ts'];
   const ALL = null;
   const E = (sym, name, def, re, chs = ALL) => ({ sym, name, def, re: new RegExp(re), chs });
 
@@ -39,24 +39,24 @@
     E(R`\mathcal X,\ \mathcal Y`, 'espaces des entrées et des étiquettes', R`$\mathcal X$ : toutes les entrées possibles (les dossiers, par ex. $\mathbb R^2$). $\mathcal Y$ : les étiquettes possibles (par ex. $\{0,1\}$).`, R`\\mathcal X|\\mathcal Y`, SLT),
     E(R`S_n`, 'l’échantillon', R`Les $n$ exemples étiquetés $\{(X_1,Y_1),\dots,(X_n,Y_n)\}$ tirés i.i.d. selon $P$ (S pour <i>sample</i>).`, R`S_n`, SLT),
     E(R`n`, 'taille de l’échantillon', R`Le nombre d’exemples dont on dispose.`, R`\$n\$|\$n=|n\\ge|n\\to`, SLT),
-    E(R`h`, 'le vrai classifieur', R`Celui qui donne les vraies étiquettes : inconnu, c’est ce qu’on cherche à imiter.`, R`h\(X\)|h\(x`, ['slt']),
-    E(R`f,\ g`, 'une hypothèse (classifieur candidat)', R`Une fonction $\mathcal X\to\mathcal Y$ qui prédit une étiquette ; on la choisit dans la classe $\mathcal H$.`, R`g\(x|g\(X|f:\\mathcal|g_[m1M]`, ['slt']),
+    E(R`h`, 'le vrai classifieur', R`Celui qui donne les vraies étiquettes : inconnu, c’est ce qu’on cherche à imiter.`, R`h\(X\)|h\(x`, ['slt', 'tp1']),
+    E(R`f,\ g`, 'une hypothèse (classifieur candidat)', R`Une fonction $\mathcal X\to\mathcal Y$ qui prédit une étiquette ; on la choisit dans la classe $\mathcal H$.`, R`g\(x|g\(X|f:\\mathcal|g_[m1M]`, ['slt', 'tp1']),
     E(R`\mathcal H`, 'classe d’hypothèses', R`L’ensemble des classifieurs parmi lesquels on cherche (tous les linéaires, tous les réseaux d’une architecture…).`, R`\\mathcal H`, SLT),
-    E(R`\mathcal A`, 'l’algorithme d’apprentissage', R`La procédure qui transforme un échantillon en classifieur : $S_n\mapsto\hat g_n$.`, R`\\mathcal A`, ['slt']),
-    E(R`\hat g_n`, 'le classifieur appris', R`Le classifieur construit (chapeau) par l’algorithme à partir des $n$ exemples (indice $n$).`, R`\\hat g_n`, ['slt']),
+    E(R`\mathcal A`, 'l’algorithme d’apprentissage', R`La procédure qui transforme un échantillon en classifieur : $S_n\mapsto\hat g_n$.`, R`\\mathcal A`, ['slt', 'tp1']),
+    E(R`\hat g_n`, 'le classifieur appris', R`Le classifieur construit (chapeau) par l’algorithme à partir des $n$ exemples (indice $n$).`, R`\\hat g_n`, ['slt', 'tp1']),
     E(R`\ell`, 'fonction de perte', R`Le coût d’une prédiction. Perte 0/1 : 1 en cas d’erreur, 0 sinon.`, R`\\ell`, SLT),
     E(R`R(g)`, 'risque théorique', R`La probabilité d’erreur de $g$ sur un nouveau cas (perte moyenne sous la vraie loi) : inconnue.`, R`R\(g|R\(h`, SLT),
-    E(R`R_n(g)`, 'risque empirique', R`La fraction d’erreurs de $g$ sur l’échantillon : calculable, mais dépend du tirage.`, R`R_n\(g|R_n\$|R_n\(`, ['slt']),
-    E(R`g^*,\ g^*_{\mathcal H},\ g^*_n`, 'les trois optimums', R`$g^*$ : le classifieur de Bayes (meilleur possible, toutes fonctions). $g^*_{\mathcal H}$ : le meilleur de la classe. $g^*_n$ : le meilleur sur les données (ERM). L’étoile marque un optimum.`, R`g\^\*`, ['slt']),
+    E(R`R_n(g)`, 'risque empirique', R`La fraction d’erreurs de $g$ sur l’échantillon : calculable, mais dépend du tirage.`, R`R_n\(g|R_n\$|R_n\(`, ['slt', 'tp1']),
+    E(R`g^*,\ g^*_{\mathcal H},\ g^*_n`, 'les trois optimums', R`$g^*$ : le classifieur de Bayes (meilleur possible, toutes fonctions). $g^*_{\mathcal H}$ : le meilleur de la classe. $g^*_n$ : le meilleur sur les données (ERM). L’étoile marque un optimum.`, R`g\^\*`, ['slt', 'tp1']),
     E(R`\eta(x)`, 'fonction de régression', R`$\mathbb P(Y=1\mid X=x)$ : la probabilité que l’étiquette soit 1 pour l’entrée $x$.`, R`\\eta`, SLT),
     E(R`\epsilon,\ \epsilon(n)`, 'précision', R`L’écart toléré entre l’estimation et la vérité. $\epsilon(n)$ : l’erreur que l’on peut garantir avec $n$ exemples ; elle diminue quand $n$ grandit.`, R`\\epsilon|ϵ`, SLT),
     E(R`\delta,\ 1-\delta`, 'risque, confiance', R`$\delta$ : probabilité que la garantie échoue (échantillon malchanceux). $1-\delta$ : la confiance ($\delta=0{,}05$ donne 95 %).`, R`\\delta`, [...SLT, ...BD]),
-    E(R`\mu,\ \hat\mu_n,\ \nu`, 'moyenne vraie / empirique', R`$\mu$ : la vraie moyenne (inconnue). $\hat\mu_n$, aussi notée $\nu$ : la moyenne des $n$ observations.`, R`\\mu|\\nu`, ['slt']),
-    E(R`M=|\mathcal H|`, 'nombre d’hypothèses', R`Quand la classe est finie, son nombre d’éléments : la mesure de complexité la plus simple.`, R`\$M\$|2M|\|=M`, ['slt']),
-    E(R`\mathcal H(x_1,\dots,x_n)`, 'les dichotomies', R`L’ensemble des étiquetages différents que $\mathcal H$ produit sur les points $x_1..x_n$ (au plus $2^n$).`, R`\\mathcal H\(x_1`, ['slt']),
-    E(R`m_{\mathcal H}(n)`, 'fonction de croissance', R`Le nombre maximal de dichotomies que $\mathcal H$ réalise sur $n$ points : remplace $M$ quand la classe est infinie.`, R`m_\{\\mathcal H\}`, ['slt']),
-    E(R`k`, 'point de rupture', R`Un nombre de points qu’aucun ensemble ne permet de pulvériser : $m_{\mathcal H}(k)<2^k$.`, R`rupture`, ['slt']),
-    E(R`B(n,k)`, 'B(n, k)', R`Le nombre maximal d’étiquetages de $n$ points sans pulvériser $k$ points : une borne purement combinatoire sur $m_{\mathcal H}(n)$.`, R`B\(n,\s?k\)|B\(n-1`, ['slt']),
+    E(R`\mu,\ \hat\mu_n,\ \nu`, 'moyenne vraie / empirique', R`$\mu$ : la vraie moyenne (inconnue). $\hat\mu_n$, aussi notée $\nu$ : la moyenne des $n$ observations.`, R`\\mu|\\nu`, ['slt', 'tp1']),
+    E(R`M=|\mathcal H|`, 'nombre d’hypothèses', R`Quand la classe est finie, son nombre d’éléments : la mesure de complexité la plus simple.`, R`\$M\$|2M|\|=M`, ['slt', 'tp1']),
+    E(R`\mathcal H(x_1,\dots,x_n)`, 'les dichotomies', R`L’ensemble des étiquetages différents que $\mathcal H$ produit sur les points $x_1..x_n$ (au plus $2^n$).`, R`\\mathcal H\(x_1`, ['slt', 'tp1']),
+    E(R`m_{\mathcal H}(n)`, 'fonction de croissance', R`Le nombre maximal de dichotomies que $\mathcal H$ réalise sur $n$ points : remplace $M$ quand la classe est infinie.`, R`m_\{\\mathcal H\}`, ['slt', 'tp1']),
+    E(R`k`, 'point de rupture', R`Un nombre de points qu’aucun ensemble ne permet de pulvériser : $m_{\mathcal H}(k)<2^k$.`, R`rupture`, ['slt', 'tp1']),
+    E(R`B(n,k)`, 'B(n, k)', R`Le nombre maximal d’étiquetages de $n$ points sans pulvériser $k$ points : une borne purement combinatoire sur $m_{\mathcal H}(n)$.`, R`B\(n,\s?k\)|B\(n-1`, ['slt', 'tp1']),
     E(R`d_{VC}`, 'dimension VC', R`La taille du plus grand ensemble de points que $\mathcal H$ peut pulvériser : la complexité de la classe.`, R`d_\{VC\}`, SLT),
 
     // ---------- Apprentissage actif ----------
@@ -83,14 +83,14 @@
     E(R`\Delta_a`, 'écart du bras a', R`$\mu^*-\mu_a$ : ce que coûte en moyenne un tirage du bras $a$ au lieu du meilleur.`, R`\\Delta`, BD),
     E(R`N_a(n)`, 'nombre de tirages', R`Combien de fois le bras $a$ a été tiré pendant les $n$ premiers tours (aléatoire).`, R`N_a`, BD),
     E(R`R_n`, 'regret', R`$n\mu^*-\mathbb E[\sum_tX_t]$ : le gain perdu par rapport à quelqu’un qui aurait connu le meilleur bras dès le départ.`, R`R_n|R\(n\)`, BD),
-    E(R`S_n`, 'gain cumulé', R`La somme des gains obtenus après $n$ tirages (aléatoire). (En théorie de l’apprentissage, $S_n$ désigne l’échantillon.)`, R`S_n`, ['bd']),
+    E(R`S_n`, 'gain cumulé', R`La somme des gains obtenus après $n$ tirages (aléatoire). (En théorie de l’apprentissage, $S_n$ désigne l’échantillon.)`, R`S_n`, ['bd', 'tp3']),
     E(R`H_t,\ \pi`, 'historique, politique', R`$H_t$ : toutes les actions et tous les gains jusqu’à $t$ ; $\pi$ : la règle qui choisit le prochain bras à partir de l’historique.`, R`H_t|\\pi`, BD),
     E(R`\hat\mu_a(t)`, 'moyenne empirique d’un bras', R`La moyenne des gains observés sur le bras $a$ jusqu’au tour $t$.`, R`\\hat\\mu_a|\\hat\\mu_1`, BD),
     E(R`m`, 'durée d’exploration (ETC)', R`Le nombre de tirages de chaque bras pendant la phase d’exploration d’Explore-Then-Commit.`, R`m\$ fois|\$m=|m\\le`, BD),
     E(R`UCB,\ LCB`, 'bornes de confiance', R`Borne supérieure (Upper) et inférieure (Lower) de l’intervalle dans lequel la vraie moyenne $\mu_a$ se trouve avec grande probabilité.`, R`UCB|LCB`, BD),
     E(R`\mathrm{Beta}(\alpha,\beta)`, 'loi Beta', R`Loi sur $[0,1]$ qui décrit ce qu’on croit de $\mu_a$ ; $\alpha-1$ succès et $\beta-1$ échecs observés (a priori uniforme), moyenne $\frac\alpha{\alpha+\beta}$.`, R`Beta`, BD),
     E(R`S_a(t),\ \theta_a(t)`, 'succès, tirage a posteriori', R`$S_a(t)$ : nombre de succès du bras $a$ ; $\theta_a(t)$ : la valeur tirée au hasard dans la loi a posteriori de ce bras (Thompson).`, R`S_a|\\theta_a`, BD),
-    E(R`\epsilon`, 'taux d’exploration', R`Dans ε-greedy : la proportion des tours où l’on choisit un bras au hasard.`, R`\\epsilon`, ['bd']),
+    E(R`\epsilon`, 'taux d’exploration', R`Dans ε-greedy : la proportion des tours où l’on choisit un bras au hasard.`, R`\\epsilon`, ['bd', 'tp3']),
     E(R`\tau`, 'temps d’arrêt', R`L’instant où l’on cesse d’explorer (ETC séquentiel) ou de tirer (identification du meilleur bras).`, R`\\tau`, BD),
 
     // ---------- Apprentissage par renforcement ----------

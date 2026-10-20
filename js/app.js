@@ -24,14 +24,16 @@
   // et « Projet » (chapitres marqués space: 'projet', approfondis pour le projet du cours et le TFE).
   // Toutes les vues ne montrent que l'espace courant. Il est rangé dans les topics (clé 'ui:space') pour
   // suivre d'un appareil à l'autre sans toucher à store.js, repris tel quel d'AppLangues.
-  const SPACES = [['revision', 'Révisions'], ['projet', 'Projet']];
+  const SPACES = [['revision', 'Révisions'], ['projet', 'Projet'], ['tp', 'TP']];
+  // Libellé de l'espace courant (en-têtes) ; 'ui:space' range l'indice de l'espace dans SPACES
+  const SPACE_LABEL = { revision: 'Révisions', projet: 'espace Projet', tp: 'espace TP' };
   const spaceOfCh = ch => ch.space || 'revision';
-  const curSpace = () => { const t = Store.state.topics['ui:space']; return t && t.score > 0 ? 'projet' : 'revision'; };
+  const curSpace = () => { const t = Store.state.topics['ui:space']; return (SPACES[t ? Math.round(t.score) : 0] || SPACES[0])[0]; };
   const spaceChs = () => C.chapters.filter(ch => spaceOfCh(ch) === curSpace());
   const spaceOrder = () => C.order.filter(id => spaceOfCh(chOf(id)) === curSpace());
   function setSpace(sp) {
     if (sp === curSpace()) return;
-    setT('ui:space', { score: sp === 'projet' ? 1 : 0 });
+    setT('ui:space', { score: Math.max(0, SPACES.findIndex(x => x[0] === sp)) });
     paintSpace();
   }
   // Une notion ouverte depuis un lien (carte, tuteur, rappel) fait basculer dans son espace
@@ -188,7 +190,12 @@
     S().vocabThemes = C.chapters.map(c => c.id).filter(id => a.has(id));
     Store.touchPrefs();
   }
-  const activeSecs = () => C.order.filter(id => activeChs().includes(C.sections[id].ch));
+  // Dans l'espace TP, les notions de la prochaine séance choisie passent avant celles des autres TP actifs
+  const activeSecs = () => {
+    const ids = C.order.filter(id => activeChs().includes(C.sections[id].ch));
+    const nx = curSpace() === 'tp' && Store.state.topics['tp:next'];
+    return nx ? [...ids.filter(id => C.sections[id].ch === nx.note), ...ids.filter(id => C.sections[id].ch !== nx.note)] : ids;
+  };
   const readSecs = () => spaceOrder().filter(isRead);
 
   // Plan du jour : une nouvelle notion seulement si les précédentes ont été appliquées (quota propre à chaque espace)
@@ -247,6 +254,19 @@
   // ---------- Routeur ----------
   const routes = {};
   const currentRoute = () => (location.hash.slice(1) || 'today').split('/')[0];
+  // Blocs de code des fiches de TP : un bouton pour copier le code dans Spyder ou un notebook
+  function addCopyButtons(root = view) {
+    $$('pre.code', root).forEach(pre => {
+      if (pre.querySelector('.copy')) return;
+      const b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'Copier';
+      b.onclick = async () => {
+        const code = pre.querySelector('code').innerText;
+        try { await navigator.clipboard.writeText(code); b.textContent = 'Copié'; } catch (e) { prompt('Copie ce code :', code); }
+        setTimeout(() => { b.textContent = 'Copier'; }, 1500);
+      };
+      pre.appendChild(b);
+    });
+  }
   function go() {
     if (currentListener) currentListener.stop();
     Speech.stopSpeaking();
@@ -255,8 +275,10 @@
     const parts = location.hash.slice(1).split('/').map(decodeURIComponent);
     const r = routes[currentRoute()] ? currentRoute() : 'today';
     $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.view === (r === 'glossary' ? 'course' : r)));
+    const pj = $('#nav a[data-view="project"]'); if (pj) pj.textContent = curSpace() === 'tp' ? 'Séances' : N.project;
     area = null; currentSec = null;
     routes[r](parts[1], parts[2]);
+    addCopyButtons();
     window.scrollTo(0, 0);
     updateChip();
   }
@@ -359,7 +381,7 @@
     const segs = ['vocab', 'gram', 'conv'].map(k => `<i class="${k}" style="width:${Math.min(100, d.min[k] / D * 100)}%"></i>`).join('');
     view.innerHTML = `
       <div class="today-head">
-        <div><span class="eyebrow">Aujourd’hui · ${curSpace() === 'projet' ? 'espace Projet' : 'Révisions'}${streak() ? ` · ${icon('flame')} ${streak()} jour${streak() > 1 ? 's' : ''} d’affilée` : ''}</span>
+        <div><span class="eyebrow">Aujourd’hui · ${SPACE_LABEL[curSpace()]}${streak() ? ` · ${icon('flame')} ${streak()} jour${streak() > 1 ? 's' : ''} d’affilée` : ''}</span>
           <h1>${esc(date.charAt(0).toUpperCase() + date.slice(1))}</h1>
           <p class="lead">${total >= D ? 'Séance du jour terminée. Ce que tu fais maintenant, c’est de l’avance.' : `Encore <b>${Math.ceil(left)} min</b>. Réviser, comprendre une notion, l’appliquer : dans cet ordre, chaque jour.`}</p></div>
         <div class="big-num"><b>${Math.floor(total)}</b><span> / ${D} min</span></div>
@@ -617,11 +639,12 @@
     area = 'conv';
     if (sec && C.sections[sec]) return secView(sec);
     const proj = curSpace() === 'projet';
-    view.innerHTML = head(proj ? 'Espace Projet' : 'Cours', 'Les chapitres', proj ? 'Ce qu’il faut maîtriser à fond pour le projet et le TFE : Active learning, puis Bandits, puis le cas TFE. Chaque notion va de l’idée au savoir-faire chiffré, puis à la version précise et au lien avec la banque.' : 'Les chapitres actifs alimentent ta séance du jour, notion par notion, dans l’ordre du cours. Active un chapitre pas encore vu pour prendre de l’avance.')
+    const tpHead = ['Espace TP', 'Les séances de TP', 'Une fiche par étape de chaque TP : ce qu’il faut savoir avant, la démarche, le code, les résultats attendus (tirés de vraies exécutions) et les questions à préparer. Les solutions sont repliées : essaie d’abord. Coche « Dans ma séance » pour le TP qui arrive.'];
+    view.innerHTML = (curSpace() === 'tp' ? head(...tpHead) : head(proj ? 'Espace Projet' : 'Cours', 'Les chapitres', proj ? 'Ce qu’il faut maîtriser à fond pour le projet et le TFE : Active learning, puis Bandits, puis le cas TFE. Chaque notion va de l’idée au savoir-faire chiffré, puis à la version précise et au lien avec la banque.' : 'Les chapitres actifs alimentent ta séance du jour, notion par notion, dans l’ordre du cours. Active un chapitre pas encore vu pour prendre de l’avance.'))
       + courseTabs('ch') + spaceChs().map(ch => {
         const on = activeChs().includes(ch.id), nRead = ch.sections.filter(isRead).length;
         return `<div class="chapter ${on ? 'on' : ''}">
-          <div class="chapter-head"><div><span class="eyebrow">${ch.space === 'projet' ? 'Espace Projet' : ch.seen ? `Vu en cours le ${new Date(ch.seen).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long' })}` : 'Pas encore vu en cours'} · ${esc(ch.source)}</span>
+          <div class="chapter-head"><div><span class="eyebrow">${ch.space === 'tp' ? `Séance de TP${ch.lab && ch.lab.graded ? ' · évaluée' : ''}` : ch.space === 'projet' ? 'Espace Projet' : ch.seen ? `Vu en cours le ${new Date(ch.seen).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long' })}` : 'Pas encore vu en cours'} · ${esc(ch.source)}</span>
             <h2>${esc(ch.title)}</h2><p class="muted">${esc(ch.pitch)}</p></div>
             <label class="check toggle"><input type="checkbox" data-ch="${ch.id}" ${on ? 'checked' : ''}> Dans ma séance</label></div>
           <div class="meter ${meterCls(pct(chMastery(ch.id)))}"><i style="width:${pct(chMastery(ch.id))}%"></i></div>
@@ -822,6 +845,7 @@
   routes.project = () => {
     area = 'conv';
     if (curSpace() === 'projet') return roadmap();
+    if (curSpace() === 'tp') return tpBoard();
     const interest = ch => { const t = T('int:' + ch); return t ? Math.round(t.score * 5) : 0; };
     const chosen = spaceChs().find(ch => (T('proj:' + ch.id) || {}).score > 0);
     const ranked = spaceChs().sort((a, b) => interest(b.id) - interest(a.id) || chMastery(b.id) - chMastery(a.id));
@@ -861,6 +885,35 @@
     };
   };
 
+  // Séances de TP (espace TP) : choisir la prochaine séance, et cocher les questions de chaque énoncé
+  // (rangées dans les topics 'step:<id>' comme la feuille de route du projet, donc synchronisées).
+  function tpBoard() {
+    const chs = spaceChs(), st = id => T('step:' + id) || {};
+    const nx = T('tp:next'), nextCh = chs.find(c => nx && nx.note === c.id);
+    const doneOf = ch => (ch.lab.checklist || []).filter(x => st(x.id).score > 0).length;
+    const block = ch => {
+      const list = ch.lab.checklist || [], d = doneOf(ch), p = list.length ? pct(d / list.length) : 0;
+      const firstOpen = ch.sections.find(id => level(id) < 1);
+      return `<section class="section" id="tp-${ch.id}"><div class="section-head"><h2>${esc(ch.title)}</h2><span class="muted small">${d} / ${list.length} questions préparées${ch.lab.graded ? ' · <b>évalué</b>' : ''}</span></div>
+        <div class="meter ${meterCls(p)}" style="margin-bottom:12px"><i style="width:${p}%"></i></div>
+        <p class="small muted">Dossier Moodle : « ${esc(ch.lab.folder)} » · fichiers : ${ch.lab.files.map(f => `<code>${esc(f)}</code>`).join(', ')}</p>
+        <p class="small">${firstOpen ? `Fiche à lire ensuite : ${secLink(firstOpen)}` : `<span class="ok-mark">${icon('check')} Toutes les fiches lues</span>`} · <a class="link" href="#course/${ch.sections[0]}">toutes les fiches de ce TP</a></p>
+        <div class="road">${[...new Set(list.map(x => x.group))].map(g => `<h4 class="road-group">${esc(g)}</h4>` + list.filter(x => x.group === g).map(x => `<div class="road-step ${st(x.id).score > 0 ? 'done' : ''}">
+          <label class="check"><input type="checkbox" data-step="${x.id}" ${st(x.id).score > 0 ? 'checked' : ''}><span><b>${esc(x.title)}</b>${x.sec ? ` · <a class="link small" href="#course/${x.sec}">fiche</a>` : ''}<br><span class="muted small">${esc(x.hint)}</span></span></label>
+          <textarea data-note="${x.id}" rows="1" placeholder="Note : résultat obtenu, valeur, commentaire…">${esc(st(x.id).note || '')}</textarea></div>`).join('')).join('')}</div></section>`;
+    };
+    view.innerHTML = head('TP', 'Préparer tes séances', 'Chaque TP est découpé en fiches (onglet Fiches) et en questions de l’énoncé à cocher ici. Choisis ta prochaine séance : ses fiches passent en priorité dans ta séance du jour.')
+      + `<div class="panel surface"><span class="eyebrow accent">Prochaine séance</span>
+        <label class="field"><span>Quel TP ?</span><select id="tpNext"><option value="">Choisir…</option>${chs.map(c => `<option value="${c.id}" ${nextCh && nextCh.id === c.id ? 'selected' : ''}>${esc(c.title)}</option>`).join('')}</select></label>
+        ${nextCh ? `<p>${doneOf(nextCh)} / ${(nextCh.lab.checklist || []).length} questions préparées. ${(() => { const nq = (nextCh.lab.checklist || []).find(x => !(st(x.id).score > 0)); return nq ? `Prochaine : <b>${esc(nq.title)}</b>.` : 'Tout est prêt.'; })()}</p>
+          <p class="small muted">${esc(nextCh.lab.before)}</p><div class="row"><a class="btn" href="#course/${nextCh.sections.find(id => level(id) < 1) || nextCh.sections[0]}">Ouvrir la fiche suivante ${icon('arrow')}</a><a class="btn ghost" href="#tp-${nextCh.id}" id="goBlock">Voir les questions</a></div>` : '<p class="small muted">Indique quel TP a lieu à la prochaine séance.</p>'}</div>`
+      + (nextCh ? [nextCh, ...chs.filter(c => c !== nextCh)] : chs).map(block).join('');
+    $('#tpNext').onchange = e => { const id = e.target.value; if (!id) return; setT('tp:next', { score: 1, note: id }); setActive(id, true); go(); };
+    const gb = $('#goBlock'); if (gb) gb.onclick = e => { e.preventDefault(); $('#tp-' + nextCh.id).scrollIntoView({ behavior: 'smooth' }); };
+    $$('[data-step]').forEach(cb => cb.onchange = () => { setT('step:' + cb.dataset.step, { score: cb.checked ? 1 : 0, note: st(cb.dataset.step).note || '' }); go(); });
+    $$('[data-note]').forEach(ta => ta.onchange = () => { const s0 = st(ta.dataset.note); setT('step:' + ta.dataset.note, { score: s0.score || 0, note: ta.value.trim() }); });
+  }
+
   // Feuille de route du projet (espace Projet) : les étapes viennent du chapitre qui porte « project »
   // (projet-tfe.js). Chaque étape cochée et sa note sont rangées dans les topics ('step:<id>'), donc synchronisées.
   function roadmap() {
@@ -892,7 +945,7 @@
     const order = spaceOrder(), secSet = new Set(order), cards = C.cards.filter(c => secSet.has(c.sec));
     const learned = cards.filter(c => (Store.card(c.id) || {}).box >= 3).length;
     const mastered = order.filter(id => level(id) >= 4).length;
-    view.innerHTML = head(curSpace() === 'projet' ? 'Progrès · espace Projet' : 'Progrès · Révisions', esc(N.progress), 'Le temps compte les deux espaces ensemble ; cartes et notions ne comptent que l’espace affiché.') + `
+    view.innerHTML = head('Progrès · ' + SPACE_LABEL[curSpace()], esc(N.progress), 'Le temps compte les deux espaces ensemble ; cartes et notions ne comptent que l’espace affiché.') + `
       <div class="stat-row"><div><b>${streak()}</b><span>jours d’affilée</span></div><div><b>${Math.round(week)}</b><span>min cette semaine</span></div><div><b>${learned}</b><span>cartes acquises / ${cards.length}</span></div><div><b>${mastered}</b><span>notions maîtrisées / ${order.length}</span></div></div>
       <div class="panel"><span class="eyebrow">14 derniers jours</span>
         <div class="chart" style="margin-top:16px">${days.map(d => {
