@@ -20,6 +20,23 @@
   const meterCls = p => p < 45 ? 'low' : p < 70 ? 'mid' : 'high';
   const chOf = sec => C.chapter(C.sections[sec].ch);
 
+  // Deux espaces : « Révisions » (les chapitres du cours, pour garder la matière fraîche et prendre de l'avance)
+  // et « Projet » (chapitres marqués space: 'projet', approfondis pour le projet du cours et le TFE).
+  // Toutes les vues ne montrent que l'espace courant. Il est rangé dans les topics (clé 'ui:space') pour
+  // suivre d'un appareil à l'autre sans toucher à store.js, repris tel quel d'AppLangues.
+  const SPACES = [['revision', 'Révisions'], ['projet', 'Projet']];
+  const spaceOfCh = ch => ch.space || 'revision';
+  const curSpace = () => { const t = Store.state.topics['ui:space']; return t && t.score > 0 ? 'projet' : 'revision'; };
+  const spaceChs = () => C.chapters.filter(ch => spaceOfCh(ch) === curSpace());
+  const spaceOrder = () => C.order.filter(id => spaceOfCh(chOf(id)) === curSpace());
+  function setSpace(sp) {
+    if (sp === curSpace()) return;
+    setT('ui:space', { score: sp === 'projet' ? 1 : 0 });
+    paintSpace();
+  }
+  // Une notion ouverte depuis un lien (carte, tuteur, rappel) fait basculer dans son espace
+  function followSpace(sec) { if (sec && C.sections[sec]) setSpace(spaceOfCh(chOf(sec))); }
+
   // ---------- Icônes ----------
   const ICONS = {
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -70,6 +87,18 @@
   $('#nav').innerHTML = NAV.map(k => `<a href="#${k}" data-view="${k}">${esc(N[k])}</a>`).join('');
   $('#gearLink').href = '#settings';
   $('#gearLink').innerHTML = icon('gear');
+  // Sélecteur d'espace, juste après la marque (sur téléphone, il prend une ligne entière)
+  $('.brand').insertAdjacentHTML('afterend', '<div class="space-switch" id="spaceSw" role="group" aria-label="Espace"></div>');
+  function paintSpace() {
+    $('#spaceSw').innerHTML = SPACES.map(([k, l]) => `<button type="button" data-space="${k}" class="${k === curSpace() ? 'on' : ''}" aria-pressed="${k === curSpace()}">${l}</button>`).join('');
+  }
+  $('#spaceSw').onclick = e => {
+    const b = e.target.closest('[data-space]'); if (!b || b.dataset.space === curSpace()) return;
+    setSpace(b.dataset.space);
+    // Une notion de l'autre espace n'a plus sa place à l'écran : retour à la séance du jour
+    if (location.hash.slice(1).split('/')[1]) location.hash = '#today'; else go();
+  };
+  paintSpace();
   const THEME_KEY = 'applangues-theme'; // partagé avec les apps de langues (même adresse)
   const darkNow = () => (document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
   function paintThemeBtn() { const d = darkNow(); $('#themeBtn').innerHTML = icon(d ? 'sun' : 'moon'); $('#themeBtn').title = d ? 'Passer en mode clair' : 'Passer en mode sombre'; }
@@ -145,26 +174,28 @@
   const LEVEL_NAMES = ['À découvrir', 'Comprise', 'Retenue', 'Appliquée', 'Maîtrisée'];
   const chMastery = ch => { const ids = C.chapter(ch).sections; return ids.reduce((s, id) => s + mastery(id), 0) / ids.length; };
 
-  // Chapitres actifs : leurs notions entrent dans la séance du jour (réglage partagé du moteur « vocabThemes »)
+  // Chapitres actifs de l'espace courant : leurs notions entrent dans la séance du jour
+  // (réglage partagé du moteur « vocabThemes », qui garde ensemble les chapitres actifs des deux espaces)
   function activeChs() {
-    const ids = C.chapters.map(c => c.id);
+    const ids = spaceChs().map(c => c.id);
     let a = (S().vocabThemes || []).filter(x => ids.includes(x));
     if (!a.length) a = [ids[0]];
     return a;
   }
   function setActive(ch, on) {
-    const a = new Set(activeChs()); on ? a.add(ch) : a.delete(ch);
+    const a = new Set([...(S().vocabThemes || []).filter(x => C.chapter(x)), ...activeChs()]);
+    on ? a.add(ch) : a.delete(ch);
     S().vocabThemes = C.chapters.map(c => c.id).filter(id => a.has(id));
     Store.touchPrefs();
   }
   const activeSecs = () => C.order.filter(id => activeChs().includes(C.sections[id].ch));
-  const readSecs = () => C.order.filter(isRead);
+  const readSecs = () => spaceOrder().filter(isRead);
 
-  // Plan du jour : une nouvelle notion seulement si les précédentes ont été appliquées
+  // Plan du jour : une nouvelle notion seulement si les précédentes ont été appliquées (quota propre à chaque espace)
   function notionPlan() {
     const next = activeSecs().find(id => !isRead(id));
     const pending = readSecs().filter(id => hasEx(id) && exLevel(id).n < 3);
-    const readToday = C.order.filter(id => { const t = T('read:' + id); return t && t.score > 0 && t.last === Store.today(); }).length;
+    const readToday = spaceOrder().filter(id => { const t = T('read:' + id); return t && t.score > 0 && t.last === Store.today(); }).length;
     const quota = Math.max(0, (S().notionsPerDay || 1) - readToday);
     return { next, pending, readToday, quota, open: !!next && !pending.length && quota > 0 };
   }
@@ -302,7 +333,7 @@
     const segs = ['vocab', 'gram', 'conv'].map(k => `<i class="${k}" style="width:${Math.min(100, d.min[k] / D * 100)}%"></i>`).join('');
     view.innerHTML = `
       <div class="today-head">
-        <div><span class="eyebrow">Aujourd’hui ${streak() ? `· ${icon('flame')} ${streak()} jour${streak() > 1 ? 's' : ''} d’affilée` : ''}</span>
+        <div><span class="eyebrow">Aujourd’hui · ${curSpace() === 'projet' ? 'espace Projet' : 'Révisions'}${streak() ? ` · ${icon('flame')} ${streak()} jour${streak() > 1 ? 's' : ''} d’affilée` : ''}</span>
           <h1>${esc(date.charAt(0).toUpperCase() + date.slice(1))}</h1>
           <p class="lead">${total >= D ? 'Séance du jour terminée. Ce que tu fais maintenant, c’est de l’avance.' : `Encore <b>${Math.ceil(left)} min</b>. Réviser, comprendre une notion, l’appliquer : dans cet ordre, chaque jour.`}</p></div>
         <div class="big-num"><b>${Math.floor(total)}</b><span> / ${D} min</span></div>
@@ -361,6 +392,7 @@
     area = 'vocab';
     if (tab === 'all') return allCards();
     const onlySec = tab === 's' && C.sections[arg] ? arg : null;
+    followSpace(onlySec);
     let queue = cardQueue(onlySec);
     const total = queue.length, retry = new Set(), seen = {};
     let cur = null, flipped = false, good = 0;
@@ -415,7 +447,7 @@
   function allCards() {
     view.innerHTML = head('Retenir', esc(N.cards), 'Toutes les cartes du cours. Celles des notions pas encore lues attendent leur tour.')
       + `<div class="tabs"><a href="#cards">Révision</a><a class="active" href="#cards/all">Toutes les cartes</a></div>`
-      + C.chapters.map(ch => `<details class="theme" ${activeChs().includes(ch.id) ? 'open' : ''}><summary><span class="name">${esc(ch.title)}</span><span class="muted small">${C.cards.filter(c => C.sections[c.sec].ch === ch.id && (Store.card(c.id) || {}).box >= 3).length} / ${C.cards.filter(c => C.sections[c.sec].ch === ch.id).length} acquises</span></summary>
+      + spaceChs().map(ch => `<details class="theme" ${activeChs().includes(ch.id) ? 'open' : ''}><summary><span class="name">${esc(ch.title)}</span><span class="muted small">${C.cards.filter(c => C.sections[c.sec].ch === ch.id && (Store.card(c.id) || {}).box >= 3).length} / ${C.cards.filter(c => C.sections[c.sec].ch === ch.id).length} acquises</span></summary>
         ${ch.sections.map(sec => `<div class="card-list"><h4>${secLink(sec)} ${isRead(sec) ? '' : '<span class="tag">à lire</span>'}</h4>
           ${secCards(sec).map(c => { const k = Store.card(c.id); return `<details class="mini-card"><summary><span class="box-tag b${k ? Math.min(k.box, 4) : 0}" title="Boîte ${k ? k.box : 0}"></span>${c.q}</summary><div class="card-a">${c.a}</div></details>`; }).join('')}</div>`).join('')}</details>`).join('');
   }
@@ -453,7 +485,7 @@
   routes.quiz = (sec) => {
     area = 'gram';
     const one = sec && C.sections[sec] ? sec : null;
-    if (one) currentSec = one;
+    if (one) { currentSec = one; followSpace(one); }
     const pool = one ? [one] : readSecs();
     view.innerHTML = (one ? backLink('#course/' + one, C.sections[one].title) : '') + head('Appliquer', one ? esc(C.sections[one].title) : esc(N.quiz), one ? 'Six exercices sur cette notion. Le calcul et le raisonnement révèlent ce que la lecture laisse croire acquis.' : 'Une série sur tes notions lues, en priorité les plus fragiles. Chaque réponse ajuste ta maîtrise.')
       + `<div class="quiz-tools">${one && AI.hasKey() ? '<button class="btn quiet small" id="aiQ">' + icon('bulb') + ' Nouvelles questions IA</button>' : ''}</div><div class="trainer" id="qz"></div>`;
@@ -536,11 +568,12 @@
   routes.course = (sec) => {
     area = 'conv';
     if (sec && C.sections[sec]) return secView(sec);
-    view.innerHTML = head('Cours', 'Les chapitres', 'Les chapitres actifs alimentent ta séance du jour, notion par notion, dans l’ordre du cours. Active un chapitre pas encore vu pour prendre de l’avance.')
-      + C.chapters.map(ch => {
+    const proj = curSpace() === 'projet';
+    view.innerHTML = head(proj ? 'Espace Projet' : 'Cours', 'Les chapitres', proj ? 'Ce qu’il faut maîtriser à fond pour le projet et le TFE : Active learning, puis Bandits, puis le cas TFE. Chaque notion va de l’idée au savoir-faire chiffré, puis à la version précise et au lien avec la banque.' : 'Les chapitres actifs alimentent ta séance du jour, notion par notion, dans l’ordre du cours. Active un chapitre pas encore vu pour prendre de l’avance.')
+      + spaceChs().map(ch => {
         const on = activeChs().includes(ch.id), nRead = ch.sections.filter(isRead).length;
         return `<div class="chapter ${on ? 'on' : ''}">
-          <div class="chapter-head"><div><span class="eyebrow">${ch.seen ? `Vu en cours le ${new Date(ch.seen).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long' })}` : 'Pas encore vu en cours'} · ${esc(ch.source)}</span>
+          <div class="chapter-head"><div><span class="eyebrow">${ch.space === 'projet' ? 'Espace Projet' : ch.seen ? `Vu en cours le ${new Date(ch.seen).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long' })}` : 'Pas encore vu en cours'} · ${esc(ch.source)}</span>
             <h2>${esc(ch.title)}</h2><p class="muted">${esc(ch.pitch)}</p></div>
             <label class="check toggle"><input type="checkbox" data-ch="${ch.id}" ${on ? 'checked' : ''}> Dans ma séance</label></div>
           <div class="meter ${meterCls(pct(chMastery(ch.id)))}"><i style="width:${pct(chMastery(ch.id))}%"></i></div>
@@ -555,6 +588,7 @@
 
   function secView(sec) {
     currentSec = sec;
+    followSpace(sec);
     const s = C.sections[sec], ch = chOf(sec), idx = ch.sections.indexOf(sec);
     const prev = ch.sections[idx - 1], next = ch.sections[idx + 1], lv = level(sec), read = isRead(sec);
     const nextStep = [
@@ -589,10 +623,11 @@
   const MODES = [['explain', 'Explique-moi'], ['socratic', 'Fais-moi trouver'], ['examiner', 'Oral d’examen'], ['link', 'Relier au reste']];
   routes.tutor = (mode, sec) => {
     area = 'conv';
+    followSpace(sec);
     if (mode === 'oral' && C.sections[sec]) return feynman(sec);
     const chosen = C.sections[sec] ? sec : (currentSec || readSecs().slice(-1)[0] || activeSecs()[0]);
     const m = MODES.some(x => x[0] === mode) ? mode : mode === 'ask' ? 'explain' : 'explain';
-    const options = C.chapters.map(ch => `<optgroup label="${esc(ch.short)}">${ch.sections.map(id => `<option value="${id}" ${id === chosen ? 'selected' : ''}>${isRead(id) ? '' : '○ '}${esc(C.sections[id].title)}</option>`).join('')}</optgroup>`).join('');
+    const options = spaceChs().map(ch => `<optgroup label="${esc(ch.short)}">${ch.sections.map(id => `<option value="${id}" ${id === chosen ? 'selected' : ''}>${isRead(id) ? '' : '○ '}${esc(C.sections[id].title)}</option>`).join('')}</optgroup>`).join('');
     view.innerHTML = head('Tuteur', esc(N.tutor), 'Un tuteur qui connaît tes fiches et tes notes. Pose tes questions, fais-toi interroger comme à l’oral, ou laisse-le te guider sans donner la réponse.')
       + (AI.hasKey() ? '' : noKey('Le tuteur'))
       + `<div class="tutor-bar"><label class="field"><span>Notion</span><select id="tSec">${options}</select></label>
@@ -737,9 +772,10 @@
   };
   routes.project = () => {
     area = 'conv';
+    if (curSpace() === 'projet') return roadmap();
     const interest = ch => { const t = T('int:' + ch); return t ? Math.round(t.score * 5) : 0; };
-    const chosen = C.chapters.find(ch => (T('proj:' + ch.id) || {}).score > 0);
-    const ranked = C.chapters.slice().sort((a, b) => interest(b.id) - interest(a.id) || chMastery(b.id) - chMastery(a.id));
+    const chosen = spaceChs().find(ch => (T('proj:' + ch.id) || {}).score > 0);
+    const ranked = spaceChs().sort((a, b) => interest(b.id) - interest(a.id) || chMastery(b.id) - chMastery(a.id));
     const lead = chosen ? `Projet sur <b>${esc(chosen.title)}</b>. Objectif : en maîtriser chaque notion jusqu’au palier « Approfondir ».` : 'Note ton intérêt pour chaque chapitre au fil des cours. Quand tu choisis, ce chapitre devient prioritaire dans ta séance.';
     view.innerHTML = head('Projet', 'Choisir et préparer ton projet', lead)
       + (chosen ? (() => {
@@ -752,17 +788,17 @@
         const it = interest(ch.id), isChosen = chosen && chosen.id === ch.id;
         return `<div class="proj ${isChosen ? 'chosen' : ''}"><span class="eyebrow">${ch.seen ? 'Vu en cours' : 'Pas encore vu'} · maîtrise ${pct(chMastery(ch.id))} %</span><h3>${esc(ch.title)}</h3>
           <div class="stars" data-ch="${ch.id}" title="Ton intérêt">${[1, 2, 3, 4, 5].map(k => `<button data-v="${k}" class="${k <= it ? 'on' : ''}" aria-label="${k} sur 5">${icon('star')}</button>`).join('')}</div>
-          <ul class="ideas">${PROJECTS[ch.id].map(([t, d, lvl]) => `<li><b>${esc(t)}</b> <span class="muted small">${'●'.repeat(lvl)}${'○'.repeat(3 - lvl)}</span><br><span class="small">${esc(d)}</span></li>`).join('')}</ul>
+          <ul class="ideas">${(PROJECTS[ch.id] || []).map(([t, d, lvl]) => `<li><b>${esc(t)}</b> <span class="muted small">${'●'.repeat(lvl)}${'○'.repeat(3 - lvl)}</span><br><span class="small">${esc(d)}</span></li>`).join('')}</ul>
           <div class="row">${isChosen ? `<span class="ok-mark">${icon('check')} Chapitre du projet</span><button class="link small" data-unchoose="${ch.id}">Changer</button>` : `<button class="btn small ${chosen ? 'quiet' : ''}" data-choose="${ch.id}">Choisir ce chapitre</button>`}</div></div>`;
       }).join('')}</div>
       <section class="section"><div class="section-head"><h2>Idées sur mesure</h2></div>
         ${AI.hasKey() ? '' : noKey('La génération d’idées')}
-        <div class="two-col"><div><label class="field"><span>Chapitre</span><select id="pCh">${C.chapters.map(ch => `<option value="${ch.id}" ${(chosen ? chosen.id : ranked[0].id) === ch.id ? 'selected' : ''}>${esc(ch.title)}</option>`).join('')}</select></label>
+        <div class="two-col"><div><label class="field"><span>Chapitre</span><select id="pCh">${spaceChs().map(ch => `<option value="${ch.id}" ${(chosen ? chosen.id : ranked[0].id) === ch.id ? 'selected' : ''}>${esc(ch.title)}</option>`).join('')}</select></label>
           <label class="field"><span>Tes intérêts</span><input id="pInt" value="banque, finance, RAG, aide à la décision"></label>
           <button class="btn" id="pGo" ${AI.hasKey() ? '' : 'disabled'}>Proposer 3 projets</button></div><div id="pOut" class="review" style="display:none"></div></div></section>`;
     $$('.stars').forEach(st => st.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; setT('int:' + st.dataset.ch, { score: +b.dataset.v / 5 }); go(); });
     $$('[data-choose]').forEach(b => b.onclick = () => {
-      C.chapters.forEach(ch => { if ((T('proj:' + ch.id) || {}).score) setT('proj:' + ch.id, { score: 0 }); });
+      spaceChs().forEach(ch => { if ((T('proj:' + ch.id) || {}).score) setT('proj:' + ch.id, { score: 0 }); });
       setT('proj:' + b.dataset.choose, { score: 1 });
       setActive(b.dataset.choose, true);
       toast('Chapitre choisi : il est maintenant actif dans ta séance du jour.', 4000); go();
@@ -776,6 +812,26 @@
     };
   };
 
+  // Feuille de route du projet (espace Projet) : les étapes viennent du chapitre qui porte « project »
+  // (projet-tfe.js). Chaque étape cochée et sa note sont rangées dans les topics ('step:<id>'), donc synchronisées.
+  function roadmap() {
+    const host = spaceChs().find(ch => ch.project), steps = host ? host.project : [];
+    const st = id => T('step:' + id) || {};
+    const nDone = steps.filter(x => st(x.id).score > 0).length, next = steps.find(x => !(st(x.id).score > 0));
+    const p = steps.length ? pct(nDone / steps.length) : 0;
+    view.innerHTML = head('Projet', 'Feuille de route', 'Le projet du cours, conçu pour servir le TFE : vérifier des liens de propriété sous budget. Trois paliers, chacun avec un livrable montrable. Ce cadrage est une proposition à valider avec le Prof. Siebert et le promoteur.')
+      + `<div class="panel surface"><span class="eyebrow accent">Avancement</span><h3>${nDone} / ${steps.length} étapes</h3>
+        <div class="meter ${meterCls(p)}" style="margin:12px 0"><i style="width:${p}%"></i></div>
+        ${next ? `<p>Prochaine étape : <b>${esc(next.title)}</b></p>` : '<p>Toutes les étapes sont faites.</p>'}
+        <p class="small muted">${host ? `Le chapitre <a class="link" href="#course/${host.sections[host.sections.length - 1]}">${esc(host.title)}</a> détaille chaque palier. ` : ''}Les chapitres Active learning et Bandits de l’espace Projet donnent les savoir-faire à maîtriser d’abord.</p></div>`
+      + [...new Set(steps.map(x => x.step))].map(g => `<section class="section"><div class="section-head"><h2>${esc(g)}</h2></div><div class="road">
+        ${steps.filter(x => x.step === g).map(x => `<div class="road-step ${st(x.id).score > 0 ? 'done' : ''}">
+          <label class="check"><input type="checkbox" data-step="${x.id}" ${st(x.id).score > 0 ? 'checked' : ''}><span><b>${esc(x.title)}</b><br><span class="muted small">${esc(x.hint)}</span></span></label>
+          <textarea data-note="${x.id}" rows="1" placeholder="Note : décision, lien, résultat…">${esc(st(x.id).note || '')}</textarea></div>`).join('')}</div></section>`).join('');
+    $$('[data-step]').forEach(cb => cb.onchange = () => { setT('step:' + cb.dataset.step, { score: cb.checked ? 1 : 0, note: st(cb.dataset.step).note || '' }); go(); });
+    $$('[data-note]').forEach(ta => ta.onchange = () => { const s0 = st(ta.dataset.note); setT('step:' + ta.dataset.note, { score: s0.score || 0, note: ta.value.trim() }); });
+  }
+
   // =====================================================================
   // PROGRÈS
   // =====================================================================
@@ -784,17 +840,18 @@
     const goal = S().dailyMinutes;
     const max = Math.max(goal * 1.2, ...days.map(d => Store.totalMin(d)));
     const week = days.slice(-7).reduce((a, d) => a + Store.totalMin(d), 0);
-    const learned = C.cards.filter(c => (Store.card(c.id) || {}).box >= 3).length;
-    const mastered = C.order.filter(id => level(id) >= 4).length;
-    view.innerHTML = head('Progrès', esc(N.progress)) + `
-      <div class="stat-row"><div><b>${streak()}</b><span>jours d’affilée</span></div><div><b>${Math.round(week)}</b><span>min cette semaine</span></div><div><b>${learned}</b><span>cartes acquises / ${C.cards.length}</span></div><div><b>${mastered}</b><span>notions maîtrisées / ${C.order.length}</span></div></div>
+    const order = spaceOrder(), secSet = new Set(order), cards = C.cards.filter(c => secSet.has(c.sec));
+    const learned = cards.filter(c => (Store.card(c.id) || {}).box >= 3).length;
+    const mastered = order.filter(id => level(id) >= 4).length;
+    view.innerHTML = head(curSpace() === 'projet' ? 'Progrès · espace Projet' : 'Progrès · Révisions', esc(N.progress), 'Le temps compte les deux espaces ensemble ; cartes et notions ne comptent que l’espace affiché.') + `
+      <div class="stat-row"><div><b>${streak()}</b><span>jours d’affilée</span></div><div><b>${Math.round(week)}</b><span>min cette semaine</span></div><div><b>${learned}</b><span>cartes acquises / ${cards.length}</span></div><div><b>${mastered}</b><span>notions maîtrisées / ${order.length}</span></div></div>
       <div class="panel"><span class="eyebrow">14 derniers jours</span>
         <div class="chart" style="margin-top:16px">${days.map(d => {
       const x = Store.dayAgg(d), v = Store.totalMin(d);
       return `<div class="col" title="${d} : ${Math.round(v)} min"><div class="stack" style="height:${v / max * 100}%">${['vocab', 'gram', 'conv'].map(k => `<div class="seg ${k}" style="flex:${x.min[k]}"></div>`).join('')}</div><span>${d.slice(8)}</span></div>`;
     }).join('')}<div class="goal-line" style="bottom:${goal / max * 100}%"></div></div>
         <div class="legend"><span><i class="seg vocab"></i>Cartes</span><span><i class="seg gram"></i>Exercices</span><span><i class="seg conv"></i>Fiches et tuteur</span><span>Pointillés : objectif</span></div></div>
-      ${C.chapters.map(ch => `<div class="panel"><div class="map-head"><b>${esc(ch.title)}</b><span class="muted small">${pct(chMastery(ch.id))} %</span></div>
+      ${spaceChs().map(ch => `<div class="panel"><div class="map-head"><b>${esc(ch.title)}</b><span class="muted small">${pct(chMastery(ch.id))} %</span></div>
         <table class="prog"><tr><th>Notion</th><th>Paliers</th><th>Maîtrise</th></tr>${ch.sections.map(id => `<tr><td>${secLink(id)}</td><td>${stageBar(id)}</td><td><span class="meter ${meterCls(pct(mastery(id)))}"><i style="width:${pct(mastery(id))}%"></i></span></td></tr>`).join('')}</table></div>`).join('')}
       <div class="panel"><span class="eyebrow">Sauvegarde</span><p class="muted small">Tes progrès sont stockés dans ce navigateur${Sync.enabled() ? ' et synchronisés avec ton dépôt privé' : ''}. Tu peux aussi les exporter.</p>
         <div class="row"><button class="btn ghost small" id="exp">Exporter</button><label class="btn ghost small">Importer<input type="file" id="imp" accept=".json" hidden></label></div></div>`;

@@ -158,3 +158,28 @@ table.left { text-align: left; margin-top: 24px; }
 
 /* Les onglets défilent horizontalement seulement (sinon une barre verticale parasite apparaît) */
 .tabs { overflow-y: hidden; }
+
+/* Espaces « Révisions » et « Projet » : sélecteur de l'en-tête (une ligne entière sur téléphone) */
+.space-switch { display: flex; border: 1px solid var(--line); flex: none; }
+.space-switch button { border: 0; background: none; color: var(--muted); padding: 7px 12px; font: 500 .7rem var(--font); text-transform: uppercase; letter-spacing: .1em; cursor: pointer; }
+.space-switch button + button { border-left: 1px solid var(--line); }
+.space-switch button.on { background: var(--ink); color: var(--bg); }
+@media (max-width: 860px) {
+  .space-switch { order: 2; width: 100%; }
+  .space-switch button { flex: 1; padding: 9px 12px; }
+}
+
+/* Fiches de l'espace Projet : intertitres des cinq temps (idée, savoir-faire, version précise, banque et TFE) */
+.fiche h4[class^="pj-"] { margin: 30px 0 10px; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); }
+.fiche h4.pj-idee { margin-top: 0; }
+.fiche h4.pj-tfe { color: var(--accent-2); }
+.fiche .f { display: block; margin: 10px 0; padding-left: 16px; }
+.fiche pre.algo { background: var(--surface); padding: 14px 18px; overflow-x: auto; font-size: .88rem; line-height: 1.5; }
+
+/* Feuille de route du projet */
+.road { border-top: 1px solid var(--line); }
+.road-step { display: grid; grid-template-columns: 1fr 260px; gap: 16px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.road-step .check { margin: 0; }
+.road-step.done b { color: var(--muted); text-decoration: line-through; }
+.road-step textarea { min-height: 38px; font-size: .85rem; }
+@media (max-width: 860px) { .road-step { grid-template-columns: 1fr; gap: 8px; } }
