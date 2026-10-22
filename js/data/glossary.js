@@ -128,6 +128,19 @@
     E(R`\lambda`, 'paramètre de Box-Cox', R`L’exposant de la transformation $\frac{x^\lambda-1}\lambda$ ($\lambda=0$ : logarithme).`, R`\\lambda`, TS),
     E(R`\chi^2_{K-p-q}`, 'loi du khi-deux', R`La loi de référence des tests du portemanteau ; $K-p-q$ est son nombre de degrés de liberté.`, R`\\chi`, TS),
 
+    // ---------- Ajouts du 23/10 (chapitres complétés) ----------
+    E(R`d(h,h')`, 'distance de désaccord', R`La probabilité que $h$ et $h'$ donnent des étiquettes différentes à un point tiré au hasard.`, R`d\(h,\s?h'|d\(h,h`, AL),
+    E(R`B(h,r)`, 'boule de désaccord', R`Les hypothèses à distance de désaccord au plus $r$ de $h$.`, R`B\(h`, AL),
+    E(R`P_{\mathcal C}`, 'consensus du comité', R`La moyenne des probabilités prédites par les membres du comité (QBC).`, R`P_\{?\\mathcal C`, AL),
+    E(R`b`, 'niveau de bruit borné', R`Bruit borné : $|\eta(x)-\frac12|>b$ pour tout $x$ ; plus $b$ est grand, moins le bruit est fort.`, R`\|\\eta\(x\)`, AL),
+    E(R`\tau,\ \delta`, 'temps d’arrêt, risque', R`Identification du meilleur bras : $\tau$ est l’instant où l’on s’arrête, $\delta$ la probabilité tolérée de recommander un mauvais bras.`, R`\\tau|\\delta`, ['bd', 'pj-bd']),
+    E(R`\hat T,\ \hat R`, 'modèle estimé', R`RL model-based : les fréquences de transition et les récompenses moyennes observées dans les épisodes.`, R`\\hat T|\\hat R`, RL),
+    E(R`A(s,a)`, 'avantage', R`$q(s,a)-v(s)$ : ce que l’action $a$ apporte par rapport à la valeur de l’état (dueling DQN). À ne pas confondre avec $A$, l’ensemble des actions.`, R`A\(s,\s?a\)`, RL),
+    E(R`D`, 'mémoire de rejeu', R`DQN : la mémoire des transitions $(s,a,r,s')$ où l’on tire les mini-lots d’apprentissage.`, R`rejeu|replay`, RL),
+    E(R`Q^*,\ Q_{BP}`, 'statistiques du portemanteau', R`Ljung-Box ($Q^*$) et Box-Pierce ($Q_{BP}$) : testent si les résidus sont un bruit blanc ; on les compare à un $\chi^2$ à $K-p-q$ degrés de liberté.`, R`Q\^\*|Q_\{BP\}|Ljung`, TS),
+    E(R`\mathbb E_t(\cdot)`, 'espérance conditionnelle au passé', R`L’espérance sachant toutes les valeurs observées jusqu’à la date $t$ : la base des prévisions.`, R`\\mathbb E_t`, TS),
+    E(R`u_{\varepsilon/2}`, 'quantile de la loi normale', R`La valeur qu’une loi normale centrée réduite dépasse avec probabilité $\varepsilon/2$ ; 1,96 pour un intervalle à 95 %.`, R`u_\{\\varepsilon`, TS),
+    E(R`\omega_i`, 'racines caractéristiques', R`Les racines de l’équation caractéristique d’un AR ; il est stationnaire quand toutes sont de module $<1$.`, R`\\omega`, TS),
     // ---------- Compléments (repérés par la vérification de couverture) ----------
     E(R`\mathbb R,\ \mathbb R^d`, 'nombres réels', R`L’ensemble des nombres réels ; $\mathbb R^d$ : les vecteurs de $d$ nombres (un point du plan pour $d=2$).`, R`\\mathbb R`),
     E(R`H_0`, 'hypothèse nulle', R`Dans un test statistique, l’hypothèse qu’on cherche à rejeter (par ex. « les résidus sont un bruit blanc »).`, R`H_0`, TS),
