@@ -277,8 +277,11 @@
     $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.view === (r === 'glossary' ? 'course' : r)));
     const pj = $('#nav a[data-view="project"]'); if (pj) pj.textContent = curSpace() === 'tp' ? 'Séances' : N.project;
     area = null; currentSec = null;
+    // Couleur propre à l'espace et à la page (vivid.css), puis entrée en douceur de la vue
+    document.body.dataset.space = curSpace(); document.body.dataset.route = r;
     routes[r](parts[1], parts[2]);
     addCopyButtons();
+    const v = $('#view'); v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter');
     window.scrollTo(0, 0);
     updateChip();
   }
