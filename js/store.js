@@ -1,8 +1,10 @@
 // État persistant (localStorage) : réglages, points faibles, cartes, historique.
 (function (global) {
   const KEY = LANG.storageKey;
-  // Clés IA communes aux apps de langues (même adresse GitHub Pages) : une seule configuration pour toutes
-  const SHARED_KEYS = 'applangues-keys';
+  // Clés IA communes aux apps de langues (même adresse GitHub Pages) : une seule configuration pour toutes.
+  // Une app peut avoir ses propres clés (LANG.keysStorage) : elle ne lit ni n'écrit alors celles des langues.
+  const LEGACY_KEYS = 'applangues-keys';
+  const SHARED_KEYS = LANG.keysStorage || LEGACY_KEYS;
   const KEY_FIELDS = ['geminiKey', 'oaBase', 'oaKey', 'oaModel', 'anKey', 'anModel'];
   const INTERVALS = [0, 1, 2, 4, 7, 15, 30, 60]; // jours, par boîte de Leitner
 
@@ -40,6 +42,20 @@
     try { state = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { state = {}; }
     for (const k of Object.keys(DEFAULT)) if (state[k] === undefined) state[k] = structuredClone(DEFAULT[k]);
     state.settings = Object.assign(structuredClone(DEFAULT.settings), state.settings);
+    // Passage à des clés propres : on oublie les clés recopiées depuis les apps de langues (une seule fois)
+    if (SHARED_KEYS !== LEGACY_KEYS && localStorage.getItem(SHARED_KEYS) === null) {
+      let legacy = {};
+      try { legacy = JSON.parse(localStorage.getItem(LEGACY_KEYS)) || {}; } catch (e) { }
+      for (const k of ['geminiKey', 'oaKey']) if (state.settings[k] && state.settings[k] === legacy[k]) state.settings[k] = '';
+      // Ce que cette app avait déposé chez les langues (clé Claude) revient ici et quitte leur stockage
+      if (legacy.anKey || legacy.anModel) {
+        if (legacy.anKey && !state.settings.anKey) state.settings.anKey = legacy.anKey;
+        delete legacy.anKey; delete legacy.anModel;
+        localStorage.setItem(LEGACY_KEYS, JSON.stringify(legacy));
+      }
+      localStorage.setItem(SHARED_KEYS, '{}');
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { }
+    }
     // Clés partagées : celles déjà saisies dans une autre app de langues l'emportent
     let shared = {};
     try { shared = JSON.parse(localStorage.getItem(SHARED_KEYS)) || {}; } catch (e) { }

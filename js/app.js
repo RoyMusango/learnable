@@ -1064,7 +1064,7 @@
         <label class="field"><span>Niveau du tuteur</span><select id="level">${L.levels.map(l => `<option ${l === s.level ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       </div>
       <div class="panel" id="aiPanel"><span class="eyebrow">Intelligence artificielle</span><h3 style="margin-bottom:8px">Ta clé API</h3>
-        <p class="small muted">Colle ta clé ci-dessous : l’app reconnaît le fournisseur toute seule (Claude <code>sk-ant-…</code>, Gemini <code>AIza…</code>, OpenAI <code>sk-…</code>, Groq <code>gsk_…</code>, OpenRouter <code>sk-or-…</code>, Mistral). Elle reste dans ce navigateur : jamais envoyée sur GitHub, ni dans la synchro, ni dans les exports.</p>
+        <p class="small muted">Colle ta clé ci-dessous : l’app reconnaît le fournisseur toute seule (Claude <code>sk-ant-…</code>, Gemini <code>AIza…</code>, OpenAI <code>sk-…</code>, Groq <code>gsk_…</code>, OpenRouter <code>sk-or-…</code>, Mistral). Elle ne sert qu’à Learnable (tes apps de langues gardent la leur) et reste dans ce navigateur : jamais envoyée sur GitHub, ni dans la synchro, ni dans les exports.</p>
         <div class="key-row"><input id="anyKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé API ici"><button class="btn" id="keySave">Enregistrer</button></div>
         <div class="notice ${AI.hasKey() ? 'done' : ''}" id="keyState" style="margin-top:14px">${AI.hasKey() ? `Clé active : <b>${esc(AI.providerLabel())}</b> (se terminant par <code>${esc((s.provider === 'gemini' ? s.geminiKey : s.provider === 'anthropic' ? s.anKey : s.oaKey).slice(-4))}</code>). Pour en changer, colle simplement la nouvelle.` : 'Aucune clé enregistrée : les fonctions IA ci-dessous sont en pause.'}</div>
         <div class="row" style="margin:0 0 22px"><button class="btn quiet" id="test">Tester la connexion</button><span id="testOut" class="small"></span></div>
@@ -1085,7 +1085,7 @@
           <p class="small muted">Sonnet : le meilleur rapport qualité, vitesse et prix pour corriger. Haiku : plus rapide et moins cher. Opus : le plus fin, plus lent et plus cher.</p>
         </div>
         <div id="pGemini">
-          <ol class="small" style="padding-left:18px;color:var(--ink-2)"><li>Ouvre <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> avec ton compte Google.</li><li>« Create API key », copie la clé.</li><li>Colle-la ci-dessous. Elle reste dans ce navigateur et est partagée avec tes apps de langues.</li></ol>
+          <ol class="small" style="padding-left:18px;color:var(--ink-2)"><li>Ouvre <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> avec ton compte Google.</li><li>« Create API key », copie la clé.</li><li>Colle-la ci-dessous. Elle reste dans ce navigateur et ne sert qu’à Learnable : tes apps de langues gardent leur propre clé.</li></ol>
           <label class="field"><span>Clé API Gemini</span><input id="gKey" type="password" value="${esc(s.geminiKey)}" placeholder="AIza… ou AQ.…"></label>
           <label class="field"><span>Modèle</span><div style="display:flex;gap:10px"><select id="gModel"><option value="${esc(s.geminiModel)}">${esc(s.geminiModel)}</option></select><button class="btn quiet small" id="gList">Charger la liste</button></div></label>
         </div>

@@ -6,6 +6,7 @@ window.LANG = {
   title: 'Learnable · Advanced Machine Learning',
   locale: 'fr-BE',
   storageKey: 'learnable-aml-v1',
+  keysStorage: 'learnable-keys', // clés IA propres à Learnable (projet AI Studio distinct des apps de langues)
   syncFile: 'progress-aml.json',
   dataRepo: 'RoyMusango/hablemos-data',
   pagesUrl: 'https://roymusango.github.io/learnable/',
