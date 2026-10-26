@@ -1,4 +1,4 @@
-// Appels IA : Gemini (gratuit via Google AI Studio) ou API compatible OpenAI (Groq, OpenRouter…).
+// Appels IA : Gemini (gratuit via Google AI Studio), Claude (Anthropic) ou API compatible OpenAI (OpenAI, Groq, OpenRouter, Mistral…).
 // Le cœur (appels, modèles de secours, réglage de réflexion) est celui d'AppLangues ; la fin du fichier est propre au tuteur de cours.
 (function (global) {
   const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta';
@@ -13,7 +13,26 @@
 
   function hasKey() {
     const s = Store.settings;
-    return s.provider === 'gemini' ? !!s.geminiKey : !!(s.oaKey && s.oaBase);
+    return s.provider === 'gemini' ? !!s.geminiKey : s.provider === 'anthropic' ? !!s.anKey : !!(s.oaKey && s.oaBase);
+  }
+
+  // Reconnaît le fournisseur d'après la forme de la clé collée dans les réglages
+  function detectKey(k) {
+    k = (k || '').trim();
+    if (/^sk-ant-/.test(k)) return { provider: 'anthropic', label: 'Claude (Anthropic)' };
+    if (/^(AIza|AQ\.)/.test(k)) return { provider: 'gemini', label: 'Google Gemini' };
+    if (/^gsk_/.test(k)) return { provider: 'openai', base: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', label: 'Groq' };
+    if (/^sk-or-/.test(k)) return { provider: 'openai', base: 'https://openrouter.ai/api/v1', model: 'openrouter/auto', label: 'OpenRouter' };
+    if (/^sk-/.test(k)) return { provider: 'openai', base: 'https://api.openai.com/v1', model: 'gpt-4o-mini', label: 'OpenAI' };
+    if (/^[A-Za-z0-9]{32}$/.test(k)) return { provider: 'openai', base: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', label: 'Mistral' };
+    return null;
+  }
+  function providerLabel() {
+    const s = Store.settings;
+    if (s.provider === 'gemini') return 'Google Gemini';
+    if (s.provider === 'anthropic') return 'Claude (Anthropic)';
+    const d = detectKey(s.oaKey);
+    return d ? d.label : 'API compatible OpenAI';
   }
 
   function countRequest() { Store.day().requests++; Store.save(); }
@@ -108,6 +127,44 @@
     return data.choices[0].message.content;
   }
 
+  // Claude, appelé directement depuis le navigateur (en-tête d'accès direct requis par Anthropic)
+  const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+  const ANTHROPIC_FALLBACKS = ['claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-sonnet-4-5'];
+  async function callAnthropic(system, messages, schema) {
+    const s = Store.settings;
+    const sys = schema ? system + '\n\nRéponds UNIQUEMENT par un objet JSON de cette forme, sans texte autour : ' + JSON.stringify(schemaToExample(schema)) : system;
+    // L'API veut une conversation qui commence par l'étudiant et alterne les rôles
+    const msgs = [];
+    for (const m of messages) {
+      const role = m.role === 'assistant' ? 'assistant' : 'user';
+      if (msgs.length && msgs[msgs.length - 1].role === role) msgs[msgs.length - 1].content += '\n\n' + m.content;
+      else msgs.push({ role, content: m.content });
+    }
+    if (!msgs.length || msgs[0].role !== 'user') msgs.unshift({ role: 'user', content: 'Bonjour.' });
+    const chosen = s.anModel || ANTHROPIC_FALLBACKS[0];
+    const models = [chosen, ...ANTHROPIC_FALLBACKS.filter(m => m !== chosen)].filter(m => !deadModels.has(m));
+    let last = null;
+    for (const model of models) {
+      countRequest();
+      let res;
+      try {
+        res = await fetch(ANTHROPIC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': s.anKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+          body: JSON.stringify({ model, max_tokens: 2048, system: sys, messages: msgs }),
+          signal: AbortSignal.timeout(60000),
+        });
+      } catch (e) { last = new AIError(e.name === 'TimeoutError' ? `${model} ne répond pas (délai dépassé)` : `Réseau : ${e.message}`, 503); continue; }
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      last = new AIError(`${(data.error && data.error.message) || res.statusText} (${model}, ${res.status})`, res.status);
+      if (res.status === 404) { deadModels.add(model); continue; }
+      if (res.status === 429 || res.status === 529 || res.status === 503) continue;
+      throw last;
+    }
+    throw last || new AIError('Aucun modèle Claude disponible', 503);
+  }
+
   function schemaToExample(s) {
     if (s.type === 'OBJECT') return Object.fromEntries(Object.entries(s.properties).map(([k, v]) => [k, schemaToExample(v)]));
     if (s.type === 'ARRAY') return [schemaToExample(s.items)];
@@ -125,7 +182,7 @@
 
   async function chat(system, messages, schema) {
     if (!hasKey()) throw new AIError('Aucune clé API : va dans Réglages.', 401);
-    const fn = Store.settings.provider === 'gemini' ? callGemini : callOpenAI;
+    const p = Store.settings.provider, fn = p === 'gemini' ? callGemini : p === 'anthropic' ? callAnthropic : callOpenAI;
     const text = await fn(system + TYPO, messages, schema);
     return clean(schema ? parseJSON(text) : text);
   }
@@ -234,5 +291,70 @@ ${context}`;
     return chat(sys, [{ role: 'user', content: `Mes intérêts : ${interests || 'banque, finance, IA appliquée'}.` }]);
   }
 
-  global.AI = { hasKey, chat, tutor, evaluate, makeQuiz, projectIdeas, listGeminiModels, AIError };
+  // ---------- Correction intelligente et compléments ----------
+  // Réponse écrite à une carte, comparée à la réponse de référence
+  const RECALL_SCHEMA = {
+    type: 'OBJECT', properties: {
+      verdict: { type: 'STRING', enum: ['juste', 'partiel', 'faux'], description: 'juste|partiel|faux' },
+      summary: { type: 'STRING', description: 'une phrase de bilan, en tutoyant l’étudiant' },
+      ok: { type: 'ARRAY', items: { type: 'STRING' }, description: 'ce qui est juste dans sa réponse' },
+      missing: { type: 'ARRAY', items: { type: 'STRING' }, description: 'éléments de la référence absents de sa réponse' },
+      errors: { type: 'ARRAY', items: { type: 'STRING' }, description: 'erreurs ou confusions, chacune suivie de sa correction' },
+      tip: { type: 'STRING', description: 'un moyen concret de retenir ou de ne plus confondre' },
+    }, required: ['verdict', 'summary', 'ok', 'missing', 'errors', 'tip'],
+  };
+  async function gradeRecall(context, question, reference, answer) {
+    const sys = `Tu corriges la réponse écrite d’un étudiant à une carte de révision du cours Advanced Machine Learning.
+${PROFILE}
+${levelRule()}
+Compare sa réponse à la RÉFÉRENCE : juge le fond, pas la forme (fautes de frappe, formules écrites en texte, ordre différent, synonymes sont acceptés). « juste » : l’essentiel de la référence y est, sans erreur. « partiel » : idée juste mais incomplète ou imprécise. « faux » : erreur de fond, confusion ou hors sujet. Listes courtes (3 éléments au plus chacune, vides si rien à dire). Tutoie l’étudiant.
+
+FICHE DU COURS :
+${context}`;
+    return chat(sys, [{ role: 'user', content: `QUESTION : ${question}\n\nRÉFÉRENCE : ${reference}\n\nRÉPONSE DE L’ÉTUDIANT : ${answer}` }], RECALL_SCHEMA);
+  }
+
+  // Exercice raté : pourquoi sa réponse est fausse, et d'où vient probablement l'erreur
+  async function explainMistake(context, question, given, correct, expl) {
+    const sys = `Tu es le tuteur d’un étudiant du cours Advanced Machine Learning. Il vient de rater un exercice.
+${PROFILE}
+${levelRule()}
+En 150 mots au plus, tutoie-le et :
+1. dis précisément pourquoi SA réponse est fausse (pour un calcul, devine l’erreur la plus probable qui mène à sa valeur : facteur oublié, mauvais logarithme, borne inversée, confusion de notions… et dis-le si tu n’en es pas sûr) ;
+2. montre le raisonnement correct pas à pas ;
+3. termine par une règle courte pour ne plus se tromper, en **gras**.
+Appuie-toi sur la fiche ci-dessous.
+
+FICHE DU COURS :
+${context}`;
+    return chat(sys, [{ role: 'user', content: `EXERCICE : ${question}\n\nMA RÉPONSE : ${given}\n\nBONNE RÉPONSE : ${correct}${expl ? `\n\nEXPLICATION DONNÉE PAR L’APP : ${expl}` : ''}` }]);
+  }
+
+  // « Plus de détails » sur une question : explication progressive, plus fouillée que la réponse courte
+  async function deepen(context, question, answer) {
+    const sys = `Tu complètes une question du cours Advanced Machine Learning pour un étudiant qui veut la comprendre en profondeur.
+${PROFILE}
+${levelRule()}
+La réponse courte est déjà connue de lui : ne la répète pas telle quelle, enrichis-la. Structure (250 mots au plus), avec ces amorces en **gras** :
+**L’idée** (une phrase), **Pourquoi c’est vrai** (l’intuition puis l’argument formel, notations définies au passage), **Exemple** (chiffré si possible), **Piège classique**, **Lien** (avec une autre notion du cours, ou une application en banque ou finance).
+Reste fidèle à la fiche ; signale ce qui va au-delà du cours.
+
+FICHE DU COURS :
+${context}`;
+    return chat(sys, [{ role: 'user', content: `QUESTION : ${question}\n\nRÉPONSE COURTE : ${answer}` }]);
+  }
+
+  // Note d'une question de TP : le résultat noté est-il cohérent ? (sans donner la solution d'un TP évalué)
+  async function checkStep(context, step, hint, note, graded) {
+    const sys = `Tu aides un étudiant à préparer une séance de TP du cours Advanced Machine Learning.
+${PROFILE}
+Il a noté sa démarche ou son résultat pour une question de l’énoncé. Dis s’il est cohérent avec ce qu’on attend (ordre de grandeur, signe, comportement quand n grandit, conditions de la théorie), ce qui est bien, ce qu’il doit revérifier et comment le vérifier lui-même. 120 mots au plus, tutoiement.
+${graded ? 'IMPORTANT : ce TP est ÉVALUÉ. Ne donne ni la réponse, ni le code, ni la valeur attendue, ni l’analyse à rendre : seulement des questions de vérification et des pistes de méthode.' : 'Tu peux donner la valeur attendue si la fiche la contient.'}
+
+FICHE ET CONSIGNES :
+${context}`;
+    return chat(sys, [{ role: 'user', content: `QUESTION DU TP : ${step}\nCONSIGNE : ${hint}\n\nMA NOTE : ${note}` }]);
+  }
+
+  global.AI = { hasKey, detectKey, providerLabel, chat, tutor, evaluate, makeQuiz, projectIdeas, listGeminiModels, gradeRecall, explainMistake, deepen, checkStep, AIError };
 })(window);

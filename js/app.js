@@ -82,6 +82,44 @@
     }).join('').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
   }
 
+  // ---------- Correction intelligente : outils communs aux cartes, exercices, fiches et TP ----------
+  const plainOf = html => { const d = document.createElement('div'); d.innerHTML = html; return d.textContent.replace(/\s+/g, ' ').trim(); };
+  const hashStr = t => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) | 0; return (h >>> 0).toString(36); };
+  // Lance une requête IA dans un encadré : attente animée, puis rendu ou erreur lisible (ignoré si l'encadré a disparu entre-temps)
+  async function aiInto(el, run, render) {
+    el.innerHTML = `<div class="ai-box loading"><span class="ai-dots"><i></i><i></i><i></i></span> L’IA réfléchit…</div>`;
+    try { const r = await run(); if (el.isConnected) el.innerHTML = render(r); return r; }
+    catch (e) { if (el.isConnected) el.innerHTML = `<div class="ai-box"><p class="err">${esc(e.message)}</p></div>`; return null; }
+  }
+  // Compléments gardés : topics 'xd:<clé>' (donc synchronisés entre PC et téléphone), rattachés à une notion
+  const savedDetail = key => { const t = T('xd:' + key); return t && t.note ? t : null; };
+  const keepDetail = (key, sec, q, text) => setT('xd:' + key, { score: 1, sec, q: q.slice(0, 300), note: text });
+  const dropDetail = key => setT('xd:' + key, { score: 0, note: '' });
+  const savedDetailsOf = sec => Object.entries(Store.state.topics).filter(([k, v]) => k.startsWith('xd:') && v.sec === sec && v.note).map(([k, v]) => ({ key: k.slice(3), ...v }));
+  // Encadré « Plus de détails » : explication approfondie, à garder dans la fiche de la notion
+  function detailBox(el, key, sec, q, a) {
+    const show = (text, kept) => {
+      el.innerHTML = `<div class="ai-box"><span class="eyebrow">${icon('bulb')} Plus de détails${kept ? ' · gardé dans la fiche' : ''}</span>${richText(text)}
+        <div class="row">${kept ? '<button class="btn quiet small" data-xd="drop">Retirer de la fiche</button>' : `<button class="btn quiet small" data-xd="keep">${icon('check')} Garder dans la fiche</button>`}<button class="btn quiet small" data-xd="redo">Autre explication</button></div></div>`;
+      const b = k => el.querySelector(`[data-xd="${k}"]`);
+      if (b('keep')) b('keep').onclick = () => { keepDetail(key, sec, plainOf(q), text); show(text, true); };
+      if (b('drop')) b('drop').onclick = () => { dropDetail(key); show(text, false); };
+      b('redo').onclick = gen;
+    };
+    const gen = () => aiInto(el, () => AI.deepen(C.plain(sec), plainOf(q), plainOf(a)), () => '').then(r => { if (r && el.isConnected) show(r, false); });
+    const saved = savedDetail(key);
+    if (saved) show(saved.note, true); else gen();
+  }
+  // Correction d'une réponse écrite à une carte
+  const VERDICT = { juste: ['good', 'check', 'Juste'], partiel: ['mid', 'bulb', 'Partiellement juste'], faux: ['bad', 'x', 'À corriger'] };
+  function recallHtml(r) {
+    const [cls, ic, lab] = VERDICT[r.verdict] || VERDICT.partiel;
+    const list = (title, xs, c) => xs && xs.length ? `<div class="eval-block ${c}"><b>${title}</b><ul>${xs.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : '';
+    return `<div class="ai-box"><span class="eyebrow">${icon('bulb')} Correction de ta réponse</span><span class="verdict ${cls}">${icon(ic)} ${lab}</span>
+      ${r.summary ? `<p style="margin-top:10px">${esc(r.summary)}</p>` : ''}${list('Ce qui est juste', r.ok, 'good')}${list('Ce qui manque', r.missing, 'mid')}${list('À corriger', r.errors, 'bad')}
+      ${r.tip ? `<p class="small" style="margin:10px 0 0"><b>Pour retenir :</b> ${esc(r.tip)}</p>` : ''}</div>`;
+  }
+
   // ---------- En-tête : marque, navigation, thème ----------
   document.title = L.title;
   $('.brand').innerHTML = `<span class="brand-mark"></span>${esc(L.appName)}`;
@@ -236,6 +274,9 @@
     try {
       const p = JSON.parse(fromB64url(m[1]));
       if (p.g) { Store.setSharedKey('geminiKey', p.g); S().provider = 'gemini'; }
+      if (p.a) Store.setSharedKey('anKey', p.a);
+      if (p.o) { Store.setSharedKey('oaKey', p.o); if (p.ob) Store.setSharedKey('oaBase', p.ob); if (p.om) Store.setSharedKey('oaModel', p.om); }
+      if (p.p) S().provider = p.p;
       if (p.t && p.r) Sync.setCfg({ token: p.t, repo: p.r });
       Store.save();
       setTimeout(() => toast('Appareil configuré : clé IA et synchro activées.', 5000), 300);
@@ -297,7 +338,7 @@
 
   const head = (eyebrow, title, lead = '') => `<div class="page-head"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ''}</div>`;
   const backLink = (href, label) => `<a href="${href}" class="link small back">${icon('back')} ${esc(label)}</a>`;
-  const noKey = what => `<div class="notice">${what} demande une clé IA gratuite. <a class="link" href="#settings">Ajoute ta clé Gemini</a> (la même que pour tes apps de langues).</div>`;
+  const noKey = what => `<div class="notice">${what} demande une clé IA. <a class="link" href="#settings">Colle ta clé dans les Réglages</a>, rubrique « Intelligence artificielle ».</div>`;
 
   // Bouton micro branché sur un champ texte (reconnaissance vocale en français)
   function micFor(btn, input) {
@@ -462,7 +503,7 @@
       box.innerHTML = `
         <div class="meta"><span>${esc(chOf(cur.sec).short)}</span><div class="meter"><i style="width:${Math.min(100, doneN / Math.max(1, total) * 100)}%"></i></div><span>${isNew ? '<span class="tag new">Nouvelle</span>' : `${queue.length} restante${queue.length > 1 ? 's' : ''}`}</span></div>
         <div class="card-face"><span class="eyebrow">${esc(s.title)}</span><div class="card-q">${cur.q}</div><div id="cNot">${notationsToggle(cur.q, cur.sec)}</div>
-          <div class="recall"><textarea id="cIn" rows="2" placeholder="Ta réponse (facultatif) : écrire force à préciser"></textarea><button class="mic small-mic" id="cMic" title="Répondre à voix haute"></button></div>
+          <div class="recall"><textarea id="cIn" rows="2" placeholder="${AI.hasKey() && S().aiAutoGrade !== false ? 'Ta réponse : écris-la, l’IA la corrigera quand tu retourneras la carte' : 'Ta réponse (facultatif) : écrire force à préciser'}"></textarea><button class="mic small-mic" id="cMic" title="Répondre à voix haute"></button></div>
           <div id="cBack"></div>
           <div class="row" id="cBtns"><button class="btn" id="cFlip">${icon('flip')} Retourner la carte</button></div></div>
         <p class="muted small center">Espace : retourner · 1 : à revoir · 2 : je savais</p>`;
@@ -477,11 +518,26 @@
     function flip() {
       flipped = true;
       if (currentListener) currentListener.stop();
+      const card = cur, typed = $('#cIn').value.trim(), k = Store.card(card.id) || {};
       $('#cNot').innerHTML = notationsToggle(cur.q + ' ' + cur.a, cur.sec);
-      $('#cBack').innerHTML = `<div class="card-a">${cur.a}</div><a class="link small" href="#course/${cur.sec}">Revoir la fiche</a>`;
+      $('#cBack').innerHTML = `<div class="card-a">${cur.a}</div><div id="cAI"></div>
+        <div class="ai-links"><a class="link small" href="#course/${cur.sec}">Revoir la fiche</a>${AI.hasKey() ? `<button class="link small" id="cMore">${icon('bulb')} ${savedDetail('c:' + card.id) ? 'Mon complément gardé' : 'Plus de détails'}</button>` : ''}</div>`;
       $('#cBtns').innerHTML = `<button class="btn bad" id="cBad">${icon('x')} À revoir</button><button class="btn good" id="cGood">${icon('check')} Je savais</button>`;
       $('#cBad').onclick = () => grade(false);
       $('#cGood').onclick = () => grade(true);
+      if (!AI.hasKey()) return;
+      const ai = $('#cAI');
+      $('#cMore').onclick = () => detailBox(ai, 'c:' + card.id, card.sec, card.q, card.a);
+      if (typed && S().aiAutoGrade !== false) {
+        // Réponse écrite : l'IA la corrige et suggère la note (c'est toujours l'étudiant qui décide)
+        aiInto(ai, () => AI.gradeRecall(C.plain(card.sec), plainOf(card.q), plainOf(card.a), typed), recallHtml).then(r => {
+          if (!r || cur !== card) return;
+          const b = $(r.verdict === 'juste' ? '#cGood' : '#cBad'); if (b) b.classList.add('suggested');
+        });
+      } else if (k.lapses >= 2) {
+        ai.innerHTML = `<div class="ai-box hint"><p>Cette carte t’a déjà échappé ${k.lapses} fois. Une explication plus fouillée aide souvent à la fixer pour de bon.</p><button class="btn small" id="cHelp">${icon('bulb')} Expliquer en détail</button></div>`;
+        $('#cHelp').onclick = () => detailBox(ai, 'c:' + card.id, card.sec, card.q, card.a);
+      }
     }
     function grade(ok) {
       if (!(cur.id in seen)) {
@@ -596,10 +652,20 @@
       $$('.opt', box).forEach(b => b.disabled = true);
       $('#qRes').innerHTML = `<div class="feedback"><span class="verdict ${ok ? 'good' : 'bad'}">${icon(ok ? 'check' : 'x')} ${ok ? 'Correct' : 'Pas tout à fait'}</span>
         ${it.opts ? '' : `<div class="solution">${shown}</div>`}
-        ${it.expl ? `<div class="expl">${it.expl}</div>` : ''}
-        <div class="row">${!ok ? `<a class="btn quiet small" href="#course/${it.sec}">Revoir la fiche</a>` : ''}<button class="btn" id="qNext">Suivant ${icon('arrow')}</button></div></div>`;
+        ${it.expl ? `<div class="expl">${it.expl}</div>` : ''}<div id="qAI"></div>
+        <div class="row">${!ok ? `<a class="btn quiet small" href="#course/${it.sec}">Revoir la fiche</a>` : ''}${AI.hasKey() ? `${!ok ? `<button class="btn ghost small" id="qWhy">${icon('bulb')} Comprendre mon erreur</button>` : ''}<button class="btn quiet small" id="qMore">Plus de détails</button>` : ''}<button class="btn" id="qNext">Suivant ${icon('arrow')}</button></div></div>`;
       $('#qNext').onclick = () => { i++; show(); };
       $('#qNext').focus();
+      if (!AI.hasKey()) return;
+      const ai = $('#qAI'), given = it.opts ? it.opts[val] : String(val), right = it.opts ? it.opts[it.a] : shown;
+      const qk = 'q:' + (/^(gen|ai):/.test(String(it.id)) ? it.sec + ':' + hashStr(plainOf(it.q)) : it.id);
+      const why = note => { const w = $('#qWhy'); if (w) w.remove();
+        aiInto(ai, () => AI.explainMistake(C.plain(it.sec), plainOf(it.q), plainOf(given), plainOf(right), it.expl ? plainOf(it.expl) : ''),
+          r => `<div class="ai-box"><span class="eyebrow">${icon('bulb')} Ton erreur, expliquée</span>${note ? `<p class="small muted">${note}</p>` : ''}${richText(r)}</div>`); };
+      if ($('#qWhy')) $('#qWhy').onclick = () => why('');
+      $('#qMore').onclick = () => detailBox(ai, qk, it.sec, it.q, plainOf(right) + (it.expl ? ' ' + plainOf(it.expl) : ''));
+      // Deuxième erreur sur la même notion dans la série : la correction détaillée arrive d'elle-même
+      if (!ok && per[it.sec].n - per[it.sec].ok >= 2) why('Deuxième erreur sur cette notion dans la série : voici une correction détaillée.');
     }
     function finish() {
       Store.day().exercises++; Store.save();
@@ -680,6 +746,8 @@
       <article class="panel fiche">${s.fiche}</article>
       ${(s.notes || []).length ? `<section class="notes"><div class="section-head"><h2>Tes notes de cours</h2><span class="muted small">reprises de ton PDF annoté</span></div>
         ${s.notes.map(n => `<div class="note"><span class="eyebrow">Slide ${n.p}</span><p>« ${esc(n.t)} »</p>${n.fix ? `<p class="fix-note">${icon('bulb')} <b>Relecture :</b> ${esc(n.fix)}</p>` : ''}</div>`).join('')}</section>` : ''}
+      ${savedDetailsOf(sec).length ? `<section class="notes"><div class="section-head"><h2>Tes compléments</h2><span class="muted small">explications gardées depuis les cartes et les exercices</span></div>
+        ${savedDetailsOf(sec).map(x => `<details class="xd"><summary>${esc(x.q)}</summary>${richText(x.note)}<button class="link small" data-drop="${esc(x.key)}">Retirer ce complément</button></details>`).join('')}</section>` : ''}
       <div class="sec-actions">
         ${read ? `<span class="ok-mark">${icon('check')} Comprise</span>${nextStep.href ? `<a class="btn" href="${nextStep.href}">${esc(nextStep.label)} ${icon('arrow')}</a>` : ''}`
         : `<button class="btn" id="markRead">${icon('check')} J’ai compris l’idée : ajouter ses ${secCards(sec).length} cartes à mes révisions</button>`}
@@ -690,6 +758,7 @@
       <div class="pager">${prev ? `<a href="#course/${prev}">${icon('back')} ${esc(C.sections[prev].title)}</a>` : '<span></span>'}${next ? `<a href="#course/${next}">${esc(C.sections[next].title)} ${icon('arrow')}</a>` : ''}</div></div>`;
     const mr = $('#markRead');
     if (mr) mr.onclick = () => { setT('read:' + sec, { score: 1 }); toast(`Notion ajoutée : ${secCards(sec).length} cartes arrivent dans tes révisions.`, 3500); go(); };
+    $$('[data-drop]').forEach(b => b.onclick = () => { dropDetail(b.dataset.drop); go(); });
   }
 
   // =====================================================================
@@ -903,7 +972,8 @@
         <p class="small">${firstOpen ? `Fiche à lire ensuite : ${secLink(firstOpen)}` : `<span class="ok-mark">${icon('check')} Toutes les fiches lues</span>`} · <a class="link" href="#course/${ch.sections[0]}">toutes les fiches de ce TP</a></p>
         <div class="road">${[...new Set(list.map(x => x.group))].map(g => `<h4 class="road-group">${esc(g)}</h4>` + list.filter(x => x.group === g).map(x => `<div class="road-step ${st(x.id).score > 0 ? 'done' : ''}">
           <label class="check"><input type="checkbox" data-step="${x.id}" ${st(x.id).score > 0 ? 'checked' : ''}><span><b>${esc(x.title)}</b>${x.sec ? ` · <a class="link small" href="#course/${x.sec}">fiche</a>` : ''}<br><span class="muted small">${esc(x.hint)}</span></span></label>
-          <textarea data-note="${x.id}" rows="1" placeholder="Note : résultat obtenu, valeur, commentaire…">${esc(st(x.id).note || '')}</textarea></div>`).join('')).join('')}</div></section>`;
+          <div class="road-note"><textarea data-note="${x.id}" rows="1" placeholder="Note : résultat obtenu, valeur, commentaire…">${esc(st(x.id).note || '')}</textarea>${AI.hasKey() ? `<button class="link small" data-check="${x.id}">${icon('bulb')} Faire vérifier ma note</button>` : ''}</div>
+          <div class="ai-slot" id="ck-${x.id}"></div></div>`).join('')).join('')}</div></section>`;
     };
     view.innerHTML = head('TP', 'Préparer tes séances', 'Chaque TP est découpé en fiches (onglet Fiches) et en questions de l’énoncé à cocher ici. Choisis ta prochaine séance : ses fiches passent en priorité dans ta séance du jour.')
       + `<div class="panel surface"><span class="eyebrow accent">Prochaine séance</span>
@@ -915,6 +985,15 @@
     const gb = $('#goBlock'); if (gb) gb.onclick = e => { e.preventDefault(); $('#tp-' + nextCh.id).scrollIntoView({ behavior: 'smooth' }); };
     $$('[data-step]').forEach(cb => cb.onchange = () => { setT('step:' + cb.dataset.step, { score: cb.checked ? 1 : 0, note: st(cb.dataset.step).note || '' }); go(); });
     $$('[data-note]').forEach(ta => ta.onchange = () => { const s0 = st(ta.dataset.note); setT('step:' + ta.dataset.note, { score: s0.score || 0, note: ta.value.trim() }); });
+    // Vérification d'une note par l'IA : cohérence du résultat ; pour un TP évalué, des pistes seulement
+    $$('[data-check]').forEach(b => b.onclick = () => {
+      const id = b.dataset.check, ch = chs.find(c => (c.lab.checklist || []).some(x => x.id === id)), x = ch.lab.checklist.find(y => y.id === id);
+      const note = $(`[data-note="${id}"]`).value.trim(), slot = $('#ck-' + id);
+      if (!note) { slot.innerHTML = '<p class="small muted">Écris d’abord ta démarche ou ton résultat dans la note, puis demande la vérification.</p>'; return; }
+      const ctx = (`${ch.title}\nAvant la séance : ${ch.lab.before}\n\n` + (x.sec ? C.plain(x.sec) : ch.sections.map(s => C.plain(s)).join('\n\n'))).slice(0, 30000);
+      aiInto(slot, () => AI.checkStep(ctx, x.title, x.hint, note, !!ch.lab.graded),
+        r => `<div class="ai-box"><span class="eyebrow">${icon('bulb')} Vérification${ch.lab.graded ? ' · TP évalué : pistes seulement' : ''}</span>${richText(r)}</div>`);
+    });
   }
 
   // Feuille de route du projet (espace Projet) : les étapes viennent du chapitre qui porte « project »
@@ -984,8 +1063,27 @@
         <label class="field"><span>Nouvelles cartes par jour (maximum)</span><input id="nNew" type="number" min="0" max="50" value="${s.newPerDay}"></label>
         <label class="field"><span>Niveau du tuteur</span><select id="level">${L.levels.map(l => `<option ${l === s.level ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       </div>
-      <div class="panel"><span class="eyebrow">Intelligence artificielle</span><h3 style="margin-bottom:18px">Tuteur, oral et questions générées</h3>
-        <label class="field"><span>Fournisseur</span><select id="provider"><option value="gemini">Google Gemini, gratuit (recommandé)</option><option value="openai">Compatible OpenAI : Groq, OpenRouter…</option></select></label>
+      <div class="panel" id="aiPanel"><span class="eyebrow">Intelligence artificielle</span><h3 style="margin-bottom:8px">Ta clé API</h3>
+        <p class="small muted">Colle ta clé ci-dessous : l’app reconnaît le fournisseur toute seule (Claude <code>sk-ant-…</code>, Gemini <code>AIza…</code>, OpenAI <code>sk-…</code>, Groq <code>gsk_…</code>, OpenRouter <code>sk-or-…</code>, Mistral). Elle reste dans ce navigateur : jamais envoyée sur GitHub, ni dans la synchro, ni dans les exports.</p>
+        <div class="key-row"><input id="anyKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé API ici"><button class="btn" id="keySave">Enregistrer</button></div>
+        <div class="notice ${AI.hasKey() ? 'done' : ''}" id="keyState" style="margin-top:14px">${AI.hasKey() ? `Clé active : <b>${esc(AI.providerLabel())}</b> (se terminant par <code>${esc((s.provider === 'gemini' ? s.geminiKey : s.provider === 'anthropic' ? s.anKey : s.oaKey).slice(-4))}</code>). Pour en changer, colle simplement la nouvelle.` : 'Aucune clé enregistrée : les fonctions IA ci-dessous sont en pause.'}</div>
+        <div class="row" style="margin:0 0 22px"><button class="btn quiet" id="test">Tester la connexion</button><span id="testOut" class="small"></span></div>
+        <span class="eyebrow">Ce que l’IA fait pour toi</span>
+        <ul class="ai-uses">
+          <li><b>Cartes</b> : écris ta réponse avant de retourner la carte, l’IA la corrige (juste, partiel ou faux), dit ce qui manque et te suggère la note.</li>
+          <li><b>Exercices</b> : « Comprendre mon erreur » après une mauvaise réponse ; à la deuxième erreur sur une même notion, la correction détaillée arrive d’elle-même.</li>
+          <li><b>Plus de détails</b> sur une carte ou un exercice : idée, preuve, exemple, piège, lien. Tu peux le <b>garder dans la fiche</b> (section « Tes compléments »).</li>
+          <li><b>TP</b> : « Faire vérifier ma note » sur chaque question préparée (pour le TP évalué, des pistes seulement, jamais la réponse).</li>
+          <li><b>Tuteur</b>, oral d’examen et nouvelles questions générées.</li>
+        </ul>
+        <label class="check"><input type="checkbox" id="aiAuto" ${s.aiAutoGrade !== false ? 'checked' : ''}> Corriger automatiquement mes réponses écrites aux cartes</label>
+        <details class="adv"><summary>Réglages avancés : fournisseur, modèle, budget</summary>
+        <label class="field"><span>Fournisseur</span><select id="provider"><option value="anthropic">Claude (Anthropic)</option><option value="gemini">Google Gemini, gratuit</option><option value="openai">Compatible OpenAI : OpenAI, Groq, OpenRouter, Mistral…</option></select></label>
+        <div id="pAN">
+          <label class="field"><span>Clé API Claude</span><input id="aKey" type="password" value="${esc(s.anKey)}" placeholder="sk-ant-…"></label>
+          <label class="field"><span>Modèle</span><select id="aModel">${['claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-opus-5-5'].map(m => `<option ${m === s.anModel ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+          <p class="small muted">Sonnet : le meilleur rapport qualité, vitesse et prix pour corriger. Haiku : plus rapide et moins cher. Opus : le plus fin, plus lent et plus cher.</p>
+        </div>
         <div id="pGemini">
           <ol class="small" style="padding-left:18px;color:var(--ink-2)"><li>Ouvre <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> avec ton compte Google.</li><li>« Create API key », copie la clé.</li><li>Colle-la ci-dessous. Elle reste dans ce navigateur et est partagée avec tes apps de langues.</li></ol>
           <label class="field"><span>Clé API Gemini</span><input id="gKey" type="password" value="${esc(s.geminiKey)}" placeholder="AIza… ou AQ.…"></label>
@@ -997,7 +1095,7 @@
           <label class="field"><span>Modèle</span><input id="oModel" value="${esc(s.oaModel)}"></label>
         </div>
         <label class="field"><span>Budget de requêtes IA par jour</span><input id="dReq" type="number" min="20" max="5000" value="${s.dailyRequests}"></label>
-        <div class="row"><button class="btn" id="test">Tester la connexion</button><span id="testOut" class="small"></span></div>
+        </details>
       </div>
       <div class="panel" id="syncPanel"><span class="eyebrow">Téléphone, synchronisation et rappels</span><h3 style="margin-bottom:14px">Même progression sur le PC et le téléphone</h3>
         <div class="notice" id="syncState"></div>
@@ -1009,9 +1107,25 @@
       </div>`;
     const set = (k, v) => { s[k] = v; if (Store.SHARED_PREFS.includes(k)) Store.touchPrefs(); else Store.save(); };
     $('#provider').value = s.provider;
-    const toggleP = () => { $('#pGemini').style.display = s.provider === 'gemini' ? '' : 'none'; $('#pOA').style.display = s.provider === 'gemini' ? 'none' : ''; };
+    const toggleP = () => { $('#pGemini').style.display = s.provider === 'gemini' ? '' : 'none'; $('#pAN').style.display = s.provider === 'anthropic' ? '' : 'none'; $('#pOA').style.display = s.provider === 'openai' ? '' : 'none'; };
     toggleP();
     $('#provider').onchange = e => { set('provider', e.target.value); toggleP(); };
+    // Clé collée dans le champ principal : fournisseur reconnu, clé rangée au bon endroit
+    const applyKey = () => {
+      const k = $('#anyKey').value.trim(); if (!k) return;
+      const d = AI.detectKey(k);
+      if (!d) { $('#keyState').className = 'notice warn'; $('#keyState').innerHTML = 'Format de clé non reconnu. Ouvre les réglages avancés, choisis le fournisseur et colle la clé dans son champ.'; return; }
+      if (d.provider === 'gemini') Store.setSharedKey('geminiKey', k);
+      else if (d.provider === 'anthropic') Store.setSharedKey('anKey', k);
+      else { Store.setSharedKey('oaKey', k); Store.setSharedKey('oaBase', d.base); Store.setSharedKey('oaModel', d.model); }
+      set('provider', d.provider);
+      go(); setTimeout(() => { toast(`Clé ${esc(d.label)} enregistrée. Clique sur « Tester la connexion » pour vérifier.`, 5000); const p = $('#aiPanel'); if (p) p.scrollIntoView({ block: 'start' }); }, 50);
+    };
+    $('#keySave').onclick = applyKey;
+    $('#anyKey').onkeydown = e => { if (e.key === 'Enter') applyKey(); };
+    $('#aiAuto').onchange = e => set('aiAutoGrade', e.target.checked);
+    $('#aKey').onchange = e => Store.setSharedKey('anKey', e.target.value.trim());
+    $('#aModel').onchange = e => Store.setSharedKey('anModel', e.target.value);
     $('#gKey').onchange = e => { Store.setSharedKey('geminiKey', e.target.value.trim()); renderPhone(); };
     $('#gModel').onchange = e => set('geminiModel', e.target.value);
     $('#oBase').onchange = e => Store.setSharedKey('oaBase', e.target.value.trim());
@@ -1042,7 +1156,7 @@
     async function renderPhone() {
       const box = $('#phoneBox'); if (!box) return;
       const c = Sync.cfg();
-      const link = PAGES_URL + '#setup=' + b64url(JSON.stringify({ g: s.geminiKey || '', t: c.token || '', r: c.repo || '' }));
+      const link = PAGES_URL + '#setup=' + b64url(JSON.stringify({ p: s.provider, g: s.geminiKey || '', a: s.anKey || '', o: s.oaKey || '', ob: s.oaKey ? s.oaBase : '', om: s.oaKey ? s.oaModel : '', t: c.token || '', r: c.repo || '' }));
       let ntfy = null;
       if (Sync.enabled()) { try { ntfy = await Sync.readJson('ntfy.json'); } catch (e) { } }
       if (!$('#phoneBox')) return;

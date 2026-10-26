@@ -3,7 +3,7 @@
   const KEY = LANG.storageKey;
   // Clés IA communes aux apps de langues (même adresse GitHub Pages) : une seule configuration pour toutes
   const SHARED_KEYS = 'applangues-keys';
-  const KEY_FIELDS = ['geminiKey', 'oaBase', 'oaKey', 'oaModel'];
+  const KEY_FIELDS = ['geminiKey', 'oaBase', 'oaKey', 'oaModel', 'anKey', 'anModel'];
   const INTERVALS = [0, 1, 2, 4, 7, 15, 30, 60]; // jours, par boîte de Leitner
 
   const DEFAULT = {
@@ -11,6 +11,7 @@
       provider: 'gemini',
       geminiKey: '', geminiModel: 'gemini-flash-latest',
       oaBase: 'https://api.groq.com/openai/v1', oaKey: '', oaModel: 'llama-3.3-70b-versatile',
+      anKey: '', anModel: 'claude-sonnet-5-5', aiAutoGrade: true,
       dailyMinutes: 30, dailyRequests: 300, newPerDay: 12,
       ttsVoice: '', ttsRate: 0.9, autoSpeak: true, handsFree: false,
       level: 'A1-A2', showTranslation: false, voiceByRole: true, voiceVariant: '',
@@ -45,7 +46,7 @@
     let changed = false;
     for (const k of KEY_FIELDS) {
       if (shared[k]) state.settings[k] = shared[k];
-      else if (state.settings[k] && k !== 'oaBase' && k !== 'oaModel') { shared[k] = state.settings[k]; changed = true; }
+      else if (state.settings[k] && k !== 'oaBase' && k !== 'oaModel' && k !== 'anModel') { shared[k] = state.settings[k]; changed = true; }
     }
     if (changed) localStorage.setItem(SHARED_KEYS, JSON.stringify(shared));
   }
@@ -86,7 +87,7 @@
       lastBackup = now;
       // La clé API reste dans le navigateur, elle n'est pas écrite dans le fichier de sauvegarde
       const copy = structuredClone(state);
-      copy.settings.geminiKey = ''; copy.settings.oaKey = '';
+      copy.settings.geminiKey = ''; copy.settings.oaKey = ''; copy.settings.anKey = '';
       post('/api/backup', copy);
     }
   }
@@ -189,12 +190,13 @@
   function touchPrefs() { state.prefsTs = Date.now(); save(); }
   function replaceState(s) { state = s; localStorage.setItem(KEY, JSON.stringify(state)); }
 
-  function exportData() { return JSON.stringify(state, null, 1); }
+  // Le fichier exporté ne contient jamais les clés API
+  function exportData() { const copy = structuredClone(state); copy.settings.geminiKey = ''; copy.settings.oaKey = ''; copy.settings.anKey = ''; return JSON.stringify(copy, null, 1); }
   function importData(json) {
     const s = JSON.parse(json);
     if (!s.settings || !s.days) throw new Error('format');
     // Garde les clés API actuelles si le fichier importé n'en contient pas
-    for (const k of ['geminiKey', 'oaKey']) if (!s.settings[k]) s.settings[k] = state.settings[k];
+    for (const k of ['geminiKey', 'oaKey', 'anKey']) if (!s.settings[k]) s.settings[k] = state.settings[k];
     localStorage.setItem(KEY, JSON.stringify(s)); load();
   }
 
