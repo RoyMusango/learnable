@@ -338,3 +338,6 @@ details.xd[open] > summary { margin-bottom: 10px; }
 .key-show { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0; }
 .key-show > span { min-width: 120px; font-size: .88rem; color: var(--ink-2); }
 .key-show code { font: .85rem Consolas, Menlo, monospace; background: var(--card); padding: 3px 8px; border-radius: 8px; word-break: break-all; user-select: all; }
+details.lang-fix { margin-top: 14px; padding-top: 12px; border-top: 1px dashed color-mix(in srgb, var(--ink) 15%, transparent); }
+details.lang-fix > summary { cursor: pointer; font-weight: 600; }
+details.lang-fix .key-row { margin-top: 8px; }

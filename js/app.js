@@ -1060,14 +1060,20 @@
   const maskKey = k => k.length <= 10 ? '•'.repeat(k.length) : k.slice(0, 4) + '•'.repeat(8) + k.slice(-4);
   const keyLine = (label, k) => `<div class="key-show"><span>${label}</span><code data-full="${esc(k)}" data-mask="${esc(maskKey(k))}">${esc(maskKey(k))}</code><button class="eye" type="button" data-reveal title="Afficher la clé en entier">${icon('eye')}</button></div>`;
   function keyStateHtml() {
-    const s = S(), k = activeKey(), lk = langKeyFor(s.provider);
-    if (!AI.hasKey()) return `<div class="notice" id="keyState" style="margin-top:14px">Aucune clé enregistrée pour Learnable : les fonctions IA ci-dessous sont en pause.${lk ? ' (Tes apps de langues ont la leur, elle n’est pas utilisée ici.)' : ''}</div>`;
+    const s = S(), k = activeKey(), lk = langKeyFor('gemini');
+    // Réparation : les apps de langues lisent toujours 'applangues-keys' au démarrage ; on peut y remettre leur propre clé d'ici
+    const fix = `<details class="lang-fix" ${lk && lk === k ? 'open' : ''}><summary>Remettre aux apps de langues leur propre clé</summary>
+      <p class="small">Tes apps de langues (espagnol, anglais, néerlandais) lisent leur clé Gemini dans ce navigateur. Si elles utilisent la clé de Learnable, colle ici celle du <b>projet AI Studio des langues</b> : les trois apps la reprennent dès leur prochaine ouverture.</p>
+      <div class="key-row"><div class="key-input"><input id="langKey" type="password" autocomplete="off" spellcheck="false" placeholder="Clé Gemini des apps de langues (AIza…)"><button class="eye" id="langEye" type="button" title="Afficher">${icon('eye')}</button></div><button class="btn quiet" id="langSave">Rendre cette clé aux langues</button></div></details>`;
+    const lines = `${k ? keyLine('Learnable', k) : ''}${lk ? keyLine('Apps de langues', lk) : ''}`;
+    if (!AI.hasKey()) return `<div class="notice ${lk ? 'warn' : ''}" id="keyState" style="margin-top:14px"><p style="margin:0 0 8px">Aucune clé enregistrée pour Learnable : les fonctions IA ci-dessous sont en pause.</p>
+      ${lk ? `${lines}<p style="margin:8px 0 0">Ci-dessus, la clé qu’utilisent en ce moment tes apps de langues. Compare ses 4 derniers caractères avec tes clés dans AI Studio : si c’est celle de ton <b>nouveau projet Learnable</b>, elle leur a été recopiée par l’ancienne version. Remets-leur leur clé ci-dessous, puis colle la nouvelle dans le champ du haut.</p>${fix}` : ''}</div>`;
     const cmp = s.provider === 'anthropic' ? ['done', 'Tes apps de langues n’utilisent pas Claude : aucune confusion possible.']
       : !lk ? ['done', 'Aucune clé des apps de langues dans ce navigateur : rien à confondre.']
-      : lk === k ? ['warn', '<b>Identique à la clé de tes apps de langues.</b> Colle ci-dessus la clé de ton nouveau projet AI Studio.']
-      : ['done', '<b>Différente de la clé de tes apps de langues</b> : chaque app utilise son propre projet.'];
+      : lk === k ? ['warn', '<b>Identique : tes apps de langues utilisent la même clé que Learnable</b>, donc le même budget. Remets-leur leur propre clé ci-dessous.']
+      : ['done', '<b>Différente de la clé de tes apps de langues</b> : chaque app utilise son propre projet, donc son propre budget.'];
     return `<div class="notice ${cmp[0]}" id="keyState" style="margin-top:14px"><p style="margin:0 0 8px">Clé active de Learnable : <b>${esc(AI.providerLabel())}</b>. Pour en changer, colle simplement la nouvelle ci-dessus.</p>
-      ${keyLine('Learnable', k)}${lk ? keyLine('Apps de langues', lk) : ''}<p style="margin:8px 0 0">${cmp[1]}</p></div>`;
+      ${lines}<p style="margin:8px 0 0">${cmp[1]}</p>${lk ? fix : ''}</div>`;
   }
 
   routes.settings = () => {
@@ -1140,6 +1146,15 @@
     };
     $('#keySave').onclick = applyKey;
     $('#anyEye').onclick = () => { const i = $('#anyKey'); i.type = i.type === 'password' ? 'text' : 'password'; $('#anyEye').classList.toggle('on', i.type === 'text'); };
+    if ($('#langEye')) $('#langEye').onclick = () => { const i = $('#langKey'); i.type = i.type === 'password' ? 'text' : 'password'; $('#langEye').classList.toggle('on', i.type === 'text'); };
+    if ($('#langSave')) $('#langSave').onclick = () => {
+      const v = $('#langKey').value.trim(), d = AI.detectKey(v);
+      if (!d || d.provider !== 'gemini') { toast('Ce n’est pas une clé Gemini (elle commence par AIza…).'); return; }
+      if (v === activeKey()) { toast('C’est la clé de Learnable : colle celle du projet des langues.'); return; }
+      let lang = {}; try { lang = JSON.parse(localStorage.getItem('applangues-keys')) || {}; } catch (e) { }
+      lang.geminiKey = v; localStorage.setItem('applangues-keys', JSON.stringify(lang));
+      go(); setTimeout(() => toast('Clé rendue aux apps de langues : elles la reprennent à leur prochaine ouverture.', 5000), 50);
+    };
     $$('[data-reveal]').forEach(b => b.onclick = () => { const c = b.previousElementSibling, on = !b.classList.contains('on'); c.textContent = on ? c.dataset.full : c.dataset.mask; b.classList.toggle('on', on); });
     $('#anyKey').onkeydown = e => { if (e.key === 'Enter') applyKey(); };
     $('#aiAuto').onchange = e => set('aiAutoGrade', e.target.checked);
