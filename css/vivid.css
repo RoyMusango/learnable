@@ -330,3 +330,11 @@ details.xd[open] > summary { margin-bottom: 10px; }
 .ai-slot { grid-column: 1 / -1; }
 .ai-slot:empty { display: none; }
 @media (max-width: 860px) { .key-row { flex-direction: column; } }
+.key-input { flex: 1; position: relative; display: flex; }
+.key-input input { padding-right: 46px !important; }
+.eye { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 50%; display: inline-grid; place-items: center; transition: color .2s, background .2s; }
+.eye:hover, .eye.on { color: var(--a1); background: color-mix(in srgb, var(--a1) 12%, transparent); }
+.key-input .eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
+.key-show { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0; }
+.key-show > span { min-width: 120px; font-size: .88rem; color: var(--ink-2); }
+.key-show code { font: .85rem Consolas, Menlo, monospace; background: var(--card); padding: 3px 8px; border-radius: 8px; word-break: break-all; user-select: all; }

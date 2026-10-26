@@ -55,6 +55,7 @@
     chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/>',
     star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
     flip: '<path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.7L4 15.5M4 20v-4.5h4.5"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   };
   const icon = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`;
 
@@ -1053,6 +1054,22 @@
   // =====================================================================
   // RÉGLAGES
   // =====================================================================
+  // Clé active de Learnable et clé des apps de langues (même navigateur), pour vérifier qu'elles diffèrent
+  const activeKey = () => { const s = S(); return (s.provider === 'gemini' ? s.geminiKey : s.provider === 'anthropic' ? s.anKey : s.oaKey) || ''; };
+  const langKeyFor = provider => { let k = {}; try { k = JSON.parse(localStorage.getItem('applangues-keys')) || {}; } catch (e) { } return provider === 'gemini' ? k.geminiKey || '' : provider === 'openai' ? k.oaKey || '' : ''; };
+  const maskKey = k => k.length <= 10 ? '•'.repeat(k.length) : k.slice(0, 4) + '•'.repeat(8) + k.slice(-4);
+  const keyLine = (label, k) => `<div class="key-show"><span>${label}</span><code data-full="${esc(k)}" data-mask="${esc(maskKey(k))}">${esc(maskKey(k))}</code><button class="eye" type="button" data-reveal title="Afficher la clé en entier">${icon('eye')}</button></div>`;
+  function keyStateHtml() {
+    const s = S(), k = activeKey(), lk = langKeyFor(s.provider);
+    if (!AI.hasKey()) return `<div class="notice" id="keyState" style="margin-top:14px">Aucune clé enregistrée pour Learnable : les fonctions IA ci-dessous sont en pause.${lk ? ' (Tes apps de langues ont la leur, elle n’est pas utilisée ici.)' : ''}</div>`;
+    const cmp = s.provider === 'anthropic' ? ['done', 'Tes apps de langues n’utilisent pas Claude : aucune confusion possible.']
+      : !lk ? ['done', 'Aucune clé des apps de langues dans ce navigateur : rien à confondre.']
+      : lk === k ? ['warn', '<b>Identique à la clé de tes apps de langues.</b> Colle ci-dessus la clé de ton nouveau projet AI Studio.']
+      : ['done', '<b>Différente de la clé de tes apps de langues</b> : chaque app utilise son propre projet.'];
+    return `<div class="notice ${cmp[0]}" id="keyState" style="margin-top:14px"><p style="margin:0 0 8px">Clé active de Learnable : <b>${esc(AI.providerLabel())}</b>. Pour en changer, colle simplement la nouvelle ci-dessus.</p>
+      ${keyLine('Learnable', k)}${lk ? keyLine('Apps de langues', lk) : ''}<p style="margin:8px 0 0">${cmp[1]}</p></div>`;
+  }
+
   routes.settings = () => {
     const s = S();
     view.innerHTML = head('Réglages', esc(N.settings)) + `
@@ -1065,8 +1082,8 @@
       </div>
       <div class="panel" id="aiPanel"><span class="eyebrow">Intelligence artificielle</span><h3 style="margin-bottom:8px">Ta clé API</h3>
         <p class="small muted">Colle ta clé ci-dessous : l’app reconnaît le fournisseur toute seule (Claude <code>sk-ant-…</code>, Gemini <code>AIza…</code>, OpenAI <code>sk-…</code>, Groq <code>gsk_…</code>, OpenRouter <code>sk-or-…</code>, Mistral). Elle ne sert qu’à Learnable (tes apps de langues gardent la leur) et reste dans ce navigateur : jamais envoyée sur GitHub, ni dans la synchro, ni dans les exports.</p>
-        <div class="key-row"><input id="anyKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé API ici"><button class="btn" id="keySave">Enregistrer</button></div>
-        <div class="notice ${AI.hasKey() ? 'done' : ''}" id="keyState" style="margin-top:14px">${AI.hasKey() ? `Clé active : <b>${esc(AI.providerLabel())}</b> (se terminant par <code>${esc((s.provider === 'gemini' ? s.geminiKey : s.provider === 'anthropic' ? s.anKey : s.oaKey).slice(-4))}</code>). Pour en changer, colle simplement la nouvelle.` : 'Aucune clé enregistrée : les fonctions IA ci-dessous sont en pause.'}</div>
+        <div class="key-row"><div class="key-input"><input id="anyKey" type="password" autocomplete="off" spellcheck="false" placeholder="Colle ta clé API ici"><button class="eye" id="anyEye" type="button" title="Afficher ce que tu as collé">${icon('eye')}</button></div><button class="btn" id="keySave">${icon('check')} Enregistrer la clé</button></div>
+        ${keyStateHtml()}
         <div class="row" style="margin:0 0 22px"><button class="btn quiet" id="test">Tester la connexion</button><span id="testOut" class="small"></span></div>
         <span class="eyebrow">Ce que l’IA fait pour toi</span>
         <ul class="ai-uses">
@@ -1099,7 +1116,7 @@
       </div>
       <div class="panel" id="syncPanel"><span class="eyebrow">Téléphone, synchronisation et rappels</span><h3 style="margin-bottom:14px">Même progression sur le PC et le téléphone</h3>
         <div class="notice" id="syncState"></div>
-        <p class="small muted">Le même jeton GitHub que pour tes apps de langues (dépôt privé <b>hablemos-data</b>). S’il est déjà saisi dans une de ces apps, il est repris automatiquement.</p>
+        <p class="small muted">Le même jeton GitHub que pour tes apps de langues (dépôt privé <b>hablemos-data</b>), rien à changer : chaque app écrit dans son propre fichier (<code>progress-aml.json</code> pour Learnable), sans toucher à celui des autres. S’il est déjà saisi dans une de ces apps, il est repris automatiquement.</p>
         <label class="field"><span>Jeton GitHub</span><input id="ghToken" type="password" value="${esc(Sync.cfg().token || '')}" placeholder="github_pat_…"></label>
         <label class="field"><span>Dépôt de progression</span><input id="ghRepo" value="${esc(Sync.cfg().repo || L.dataRepo)}"></label>
         <div class="row"><button class="btn" id="syncGo">Synchroniser maintenant</button></div>
@@ -1122,6 +1139,8 @@
       go(); setTimeout(() => { toast(`Clé ${esc(d.label)} enregistrée. Clique sur « Tester la connexion » pour vérifier.`, 5000); const p = $('#aiPanel'); if (p) p.scrollIntoView({ block: 'start' }); }, 50);
     };
     $('#keySave').onclick = applyKey;
+    $('#anyEye').onclick = () => { const i = $('#anyKey'); i.type = i.type === 'password' ? 'text' : 'password'; $('#anyEye').classList.toggle('on', i.type === 'text'); };
+    $$('[data-reveal]').forEach(b => b.onclick = () => { const c = b.previousElementSibling, on = !b.classList.contains('on'); c.textContent = on ? c.dataset.full : c.dataset.mask; b.classList.toggle('on', on); });
     $('#anyKey').onkeydown = e => { if (e.key === 'Enter') applyKey(); };
     $('#aiAuto').onchange = e => set('aiAutoGrade', e.target.checked);
     $('#aKey').onchange = e => Store.setSharedKey('anKey', e.target.value.trim());
@@ -1195,5 +1214,11 @@
   go();
   Store.sync(true);
   if (Sync.enabled()) Sync.syncNow();
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    // Nouvelle version installée : la page se recharge une fois d'elle-même pour l'afficher (pas besoin de vider le cache)
+    const hadCtrl = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtrl && !reloaded) { reloaded = true; location.reload(); } });
+    // Sur le téléphone, l'app reste ouverte des jours : on cherche une mise à jour chaque fois qu'elle revient au premier plan
+    navigator.serviceWorker.register('sw.js').then(reg => document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => { }); })).catch(() => { });
+  }
 })();

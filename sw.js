@@ -1,7 +1,7 @@
 // Service worker : l'app reste utilisable sans réseau (fiches, cartes, exercices ; le tuteur IA demande Internet).
 // Stratégie : on sert la copie en cache tout de suite et on la met à jour en arrière-plan.
 // Le nom du cache inclut le chemin de l'app pour ne pas se mélanger avec les apps de langues (même adresse).
-const VERSION = 'v20261026-1103';
+const VERSION = 'v20261026-1110';
 const CACHE = 'applangues' + self.location.pathname.replace(/sw\.js$/, '') + VERSION;
 const SHELL = [
   './', './index.html', './css/style.css', './css/theme.css', './css/vivid.css', './manifest.webmanifest',
@@ -15,7 +15,8 @@ const SHELL = [
 const PREFIX = 'applangues' + self.location.pathname.replace(/sw\.js$/, '');
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' : on va chercher les fichiers neufs sur le serveur, pas les copies que le navigateur garde quelques minutes
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
