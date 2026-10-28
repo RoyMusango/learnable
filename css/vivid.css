@@ -341,3 +341,38 @@ details.xd[open] > summary { margin-bottom: 10px; }
 details.lang-fix { margin-top: 14px; padding-top: 12px; border-top: 1px dashed color-mix(in srgb, var(--ink) 15%, transparent); }
 details.lang-fix > summary { cursor: pointer; font-weight: 600; }
 details.lang-fix .key-row { margin-top: 8px; }
+
+/* ---------- Code commenté pas à pas : le code, ce qu'il affiche, puis l'explication de chaque fonction ---------- */
+.walk { margin: 22px 0 28px; border-radius: var(--r-l); background: color-mix(in srgb, var(--a1) 4%, var(--card)); box-shadow: var(--sh-1), inset 0 0 0 1px color-mix(in srgb, var(--a1) 14%, transparent); padding: 18px 20px 8px; }
+.walk-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 6px; }
+.walk-head h4 { margin: 0; flex: 1 1 260px; font-size: 1.08rem; }
+.walk-tag { flex-basis: 100%; font-size: .72rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: color-mix(in srgb, var(--a1) 75%, var(--ink)); }
+.walk-copy { border: 0; cursor: pointer; font: 500 .82rem var(--font); padding: 7px 14px; border-radius: 999px; color: #fff; background: var(--grad); box-shadow: 0 3px 10px color-mix(in srgb, var(--a1) 30%, transparent); transition: transform .15s var(--ease); }
+.walk-copy:hover { transform: translateY(-1px); }
+.walk-intro { color: var(--ink-2); }
+.walk-intro > :first-child { margin-top: 4px; }
+.walk-steps { list-style: none; padding: 0; margin: 14px 0 0; counter-reset: none; }
+.walk-step { position: relative; padding: 0 0 18px 40px; }
+.walk-step::before { content: ''; position: absolute; left: 13px; top: 30px; bottom: 4px; width: 2px; border-radius: 2px; background: color-mix(in srgb, var(--a1) 18%, transparent); }
+.walk-step:last-child::before { display: none; }
+.walk-step-head { display: flex; align-items: center; gap: 10px; margin-left: -40px; min-height: 28px; }
+.walk-step-head b { font-weight: 600; }
+.walk-num { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 600 .82rem var(--font); color: #fff; background: var(--grad); box-shadow: 0 3px 8px color-mix(in srgb, var(--a1) 28%, transparent); }
+.walk-step pre.code { margin: 10px 0 0; }
+.walk-out { margin-top: 8px; border-radius: 12px; background: var(--surface); padding: 8px 14px 10px; }
+.walk-out > span { display: block; font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.walk-out pre { margin: 0; white-space: pre-wrap; font: .82rem/1.5 Consolas, 'Cascadia Code', Menlo, monospace; color: var(--ink); }
+.walk-expl { margin-top: 10px; }
+.walk-expl > :first-child { margin-top: 0; }
+.walk-expl > :last-child { margin-bottom: 0; }
+.fns { display: grid; gap: 6px; margin: 10px 0; }
+.fn { display: grid; grid-template-columns: minmax(0, 15rem) 1fr; gap: 4px 14px; align-items: baseline; padding: 8px 12px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.fn > code { font: .8rem Consolas, Menlo, monospace; color: color-mix(in srgb, var(--a1) 80%, var(--ink)); background: none; padding: 0; word-break: break-word; }
+.fn > div > :first-child { margin-top: 0; } .fn > div > :last-child { margin-bottom: 0; }
+.walk-after { border-top: 1px dashed color-mix(in srgb, var(--ink) 14%, transparent); padding: 12px 0 10px; }
+@media (max-width: 860px) {
+  .walk { padding: 14px 12px 4px; margin-left: -6px; margin-right: -6px; }
+  .walk-step { padding-left: 0; } .walk-step::before { display: none; } .walk-step-head { margin-left: 0; }
+  .fn { grid-template-columns: 1fr; }
+}
+.code-h { margin-top: 34px; padding-top: 18px; border-top: 1px dashed color-mix(in srgb, var(--ink) 14%, transparent); }

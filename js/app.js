@@ -309,6 +309,14 @@
       pre.appendChild(b);
     });
   }
+  // Code commenté : le bouton du haut copie le script entier, tous les morceaux bout à bout
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('.walk-copy'); if (!b) return;
+    const src = (C.scripts[b.closest('.walk').dataset.walk] || {}).src
+      || $$('.walk-step pre.code code', b.closest('.walk')).map(c => c.innerText.trimEnd()).join('\n\n');
+    try { await navigator.clipboard.writeText(src); b.textContent = 'Script copié'; } catch (err) { prompt('Copie ce script :', src); }
+    setTimeout(() => { b.textContent = 'Copier le script complet'; }, 1800);
+  });
   function go() {
     if (currentListener) currentListener.stop();
     Speech.stopSpeaking();
