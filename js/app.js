@@ -193,7 +193,15 @@
   const T = id => Store.state.topics[id];
   function setT(id, v) { Store.state.topics[id] = { n: 1, ok: 1, last: Store.today(), ...v, ts: Date.now() }; Store.save(); }
   const isRead = sec => !!(T('read:' + sec) && T('read:' + sec).score > 0);
-  const secCards = sec => C.cards.filter(c => c.sec === sec);
+  // Cartes ajoutées par l'étudiant depuis les exercices : topics 'uc:<clé>' (donc synchronisées entre PC et téléphone),
+  // révisées comme les cartes du cours. Retirer une carte vide son contenu (la fusion de la synchro garde l'horodatage le plus récent).
+  const userCards = () => Object.entries(Store.state.topics).filter(([k, v]) => k.startsWith('uc:') && v.q && C.sections[v.sec])
+    .map(([k, v]) => ({ id: k, sec: v.sec, q: v.q, a: v.a, mine: true }));
+  const cardList = () => C.cards.concat(userCards());
+  const isUserCard = key => !!(T('uc:' + key) && T('uc:' + key).q);
+  const addUserCard = (key, sec, q, a) => setT('uc:' + key, { score: 1, sec, q, a });
+  const dropUserCard = key => setT('uc:' + key, { score: 0, q: '', a: '' });
+  const secCards = sec => cardList().filter(c => c.sec === sec);
   function cardsLevel(sec) {
     const cs = secCards(sec); if (!cs.length) return 1;
     return cs.reduce((s, c) => { const k = Store.card(c.id); return s + Math.min(k ? k.box : 0, 3) / 3; }, 0) / cs.length;
@@ -477,16 +485,18 @@
   function cardQueue(onlySec) {
     const today = Store.today(), read = new Set(onlySec ? [onlySec] : readSecs());
     const due = [], fresh = [];
-    for (const c of C.cards) {
-      if (!read.has(c.sec)) continue;
+    for (const c of cardList()) {
+      if (!read.has(c.sec) && !c.mine) continue;
       const k = Store.card(c.id);
       if (k && k.box > 0) { if (k.due <= today || onlySec) due.push(c); } else fresh.push(c);
     }
     due.sort((a, b) => Store.card(a.id).box - Store.card(b.id).box || Math.random() - .5);
-    fresh.sort((a, b) => C.order.indexOf(a.sec) - C.order.indexOf(b.sec));
+    fresh.sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0) || C.order.indexOf(a.sec) - C.order.indexOf(b.sec));
+    // Les cartes que l'étudiant a choisi d'ajouter ne comptent pas dans le quota de nouvelles cartes du jour
+    const mineFresh = fresh.filter(c => c.mine).length;
     // Une notion étudiée exprès (depuis sa fiche) apporte toutes ses cartes, sinon on respecte le quota du jour
     const newLeft = onlySec ? fresh.length : Math.max(0, S().newPerDay - (Store.dayAgg().newCards || 0));
-    return [...(onlySec ? fresh.concat(due) : due.slice(0, 60).concat(fresh.slice(0, newLeft)))];
+    return [...(onlySec ? fresh.concat(due) : due.slice(0, 60).concat(fresh.slice(0, mineFresh + newLeft)))];
   }
 
   routes.cards = (tab, arg) => {
@@ -511,7 +521,7 @@
       const doneN = total - queue.length - 1;
       box.innerHTML = `
         <div class="meta"><span>${esc(chOf(cur.sec).short)}</span><div class="meter"><i style="width:${Math.min(100, doneN / Math.max(1, total) * 100)}%"></i></div><span>${isNew ? '<span class="tag new">Nouvelle</span>' : `${queue.length} restante${queue.length > 1 ? 's' : ''}`}</span></div>
-        <div class="card-face"><span class="eyebrow">${esc(s.title)}</span><div class="card-q">${cur.q}</div><div id="cNot">${notationsToggle(cur.q, cur.sec)}</div>
+        <div class="card-face"><span class="eyebrow">${esc(s.title)}${cur.mine ? ' · <span class="tag mine">Ajoutée par toi</span>' : ''}</span><div class="card-q">${cur.q}</div><div id="cNot">${notationsToggle(cur.q, cur.sec)}</div>
           <div class="recall"><textarea id="cIn" rows="2" placeholder="${AI.hasKey() && S().aiAutoGrade !== false ? 'Ta réponse : écris-la, l’IA la corrigera quand tu retourneras la carte' : 'Ta réponse (facultatif) : écrire force à préciser'}"></textarea><button class="mic small-mic" id="cMic" title="Répondre à voix haute"></button></div>
           <div id="cBack"></div>
           <div class="row" id="cBtns"><button class="btn" id="cFlip">${icon('flip')} Retourner la carte</button></div></div>
@@ -562,11 +572,13 @@
   };
 
   function allCards() {
-    view.innerHTML = head('Retenir', esc(N.cards), 'Toutes les cartes du cours. Celles des notions pas encore lues attendent leur tour.')
+    const mine = userCards().filter(c => spaceChs().some(ch => ch.id === C.sections[c.sec].ch)).length;
+    view.innerHTML = head('Retenir', esc(N.cards), 'Toutes les cartes du cours. Celles des notions pas encore lues attendent leur tour.' + (mine ? ` Dont ${mine} que tu as ajoutée${mine > 1 ? 's' : ''} depuis les exercices.` : ' Dans les exercices, le bouton « Ajouter aux cartes » transforme une question importante en carte.'))
       + `<div class="tabs"><a href="#cards">Révision</a><a class="active" href="#cards/all">Toutes les cartes</a></div>`
-      + spaceChs().map(ch => `<details class="theme" ${activeChs().includes(ch.id) ? 'open' : ''}><summary><span class="name">${esc(ch.title)}</span><span class="muted small">${C.cards.filter(c => C.sections[c.sec].ch === ch.id && (Store.card(c.id) || {}).box >= 3).length} / ${C.cards.filter(c => C.sections[c.sec].ch === ch.id).length} acquises</span></summary>
+      + spaceChs().map(ch => `<details class="theme" ${activeChs().includes(ch.id) ? 'open' : ''}><summary><span class="name">${esc(ch.title)}</span><span class="muted small">${cardList().filter(c => C.sections[c.sec].ch === ch.id && (Store.card(c.id) || {}).box >= 3).length} / ${cardList().filter(c => C.sections[c.sec].ch === ch.id).length} acquises</span></summary>
         ${ch.sections.map(sec => `<div class="card-list"><h4>${secLink(sec)} ${isRead(sec) ? '' : '<span class="tag">à lire</span>'}</h4>
-          ${secCards(sec).map(c => { const k = Store.card(c.id); return `<details class="mini-card"><summary><span class="box-tag b${k ? Math.min(k.box, 4) : 0}" title="Boîte ${k ? k.box : 0}"></span>${c.q}</summary><div class="card-a">${c.a}</div></details>`; }).join('')}</div>`).join('')}</details>`).join('');
+          ${secCards(sec).map(c => { const k = Store.card(c.id); return `<details class="mini-card${c.mine ? ' mine' : ''}"><summary><span class="box-tag b${k ? Math.min(k.box, 4) : 0}" title="Boîte ${k ? k.box : 0}"></span>${c.mine ? '<span class="tag mine">Ajoutée par toi</span> ' : ''}${c.q}</summary><div class="card-a">${c.a}</div>${c.mine ? `<button class="link small" data-unc="${esc(c.id.slice(3))}">Retirer de mes cartes</button>` : ''}</details>`; }).join('')}</div>`).join('')}</details>`).join('');
+    $$('[data-unc]').forEach(b => b.onclick = () => { dropUserCard(b.dataset.unc); toast('Carte retirée de tes révisions.', 3000); allCards(); });
   }
 
   // =====================================================================
@@ -662,12 +674,25 @@
       $('#qRes').innerHTML = `<div class="feedback"><span class="verdict ${ok ? 'good' : 'bad'}">${icon(ok ? 'check' : 'x')} ${ok ? 'Correct' : 'Pas tout à fait'}</span>
         ${it.opts ? '' : `<div class="solution">${shown}</div>`}
         ${it.expl ? `<div class="expl">${it.expl}</div>` : ''}<div id="qAI"></div>
-        <div class="row">${!ok ? `<a class="btn quiet small" href="#course/${it.sec}">Revoir la fiche</a>` : ''}${AI.hasKey() ? `${!ok ? `<button class="btn ghost small" id="qWhy">${icon('bulb')} Comprendre mon erreur</button>` : ''}<button class="btn quiet small" id="qMore">Plus de détails</button>` : ''}<button class="btn" id="qNext">Suivant ${icon('arrow')}</button></div></div>`;
+        <div class="row">${!ok ? `<a class="btn quiet small" href="#course/${it.sec}">Revoir la fiche</a>` : ''}${AI.hasKey() ? `${!ok ? `<button class="btn ghost small" id="qWhy">${icon('bulb')} Comprendre mon erreur</button>` : ''}<button class="btn quiet small" id="qMore">Plus de détails</button>` : ''}<button class="btn quiet small" id="qCard"></button><button class="btn" id="qNext">Suivant ${icon('arrow')}</button></div></div>`;
       $('#qNext').onclick = () => { i++; show(); };
       $('#qNext').focus();
-      if (!AI.hasKey()) return;
-      const ai = $('#qAI'), given = it.opts ? it.opts[val] : String(val), right = it.opts ? it.opts[it.a] : shown;
+      const given = it.opts ? it.opts[val] : String(val), right = it.opts ? it.opts[it.a] : shown;
       const qk = 'q:' + (/^(gen|ai):/.test(String(it.id)) ? it.sec + ':' + hashStr(plainOf(it.q)) : it.id);
+      // Ajouter la question aux cartes : recto = la question, verso = la bonne réponse et son explication
+      const cardBtn = $('#qCard');
+      const paintCard = () => { cardBtn.innerHTML = isUserCard(qk) ? `${icon('check')} Dans tes cartes · retirer` : `${icon('flip')} Ajouter aux cartes de révision`; cardBtn.classList.toggle('on', isUserCard(qk)); };
+      paintCard();
+      cardBtn.onclick = () => {
+        if (isUserCard(qk)) { dropUserCard(qk); toast('Carte retirée de tes révisions.', 3000); }
+        else {
+          addUserCard(qk, it.sec, it.q, `<p><b>Réponse :</b> ${right}</p>${it.expl ? `<div class="expl">${it.expl}</div>` : ''}`);
+          toast(`Ajoutée à tes cartes : elle arrivera dans ta prochaine <a class="link" href="#cards">révision</a>, avant les nouvelles cartes du jour.`, 4000);
+        }
+        paintCard();
+      };
+      if (!AI.hasKey()) return;
+      const ai = $('#qAI');
       const why = note => { const w = $('#qWhy'); if (w) w.remove();
         aiInto(ai, () => AI.explainMistake(C.plain(it.sec), plainOf(it.q), plainOf(given), plainOf(right), it.expl ? plainOf(it.expl) : ''),
           r => `<div class="ai-box"><span class="eyebrow">${icon('bulb')} Ton erreur, expliquée</span>${note ? `<p class="small muted">${note}</p>` : ''}${richText(r)}</div>`); };
@@ -1033,7 +1058,7 @@
     const goal = S().dailyMinutes;
     const max = Math.max(goal * 1.2, ...days.map(d => Store.totalMin(d)));
     const week = days.slice(-7).reduce((a, d) => a + Store.totalMin(d), 0);
-    const order = spaceOrder(), secSet = new Set(order), cards = C.cards.filter(c => secSet.has(c.sec));
+    const order = spaceOrder(), secSet = new Set(order), cards = cardList().filter(c => secSet.has(c.sec));
     const learned = cards.filter(c => (Store.card(c.id) || {}).box >= 3).length;
     const mastered = order.filter(id => level(id) >= 4).length;
     view.innerHTML = head('Progrès · ' + SPACE_LABEL[curSpace()], esc(N.progress), 'Le temps compte les deux espaces ensemble ; cartes et notions ne comptent que l’espace affiché.') + `

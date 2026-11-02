@@ -376,3 +376,9 @@ details.lang-fix .key-row { margin-top: 8px; }
   .fn { grid-template-columns: 1fr; }
 }
 .code-h { margin-top: 34px; padding-top: 18px; border-top: 1px dashed color-mix(in srgb, var(--ink) 14%, transparent); }
+
+/* ---------- Cartes ajoutées depuis les exercices ---------- */
+.tag.mine { border-color: transparent; background: color-mix(in srgb, var(--a2) 16%, var(--card)); color: color-mix(in srgb, var(--a2) 75%, var(--ink)); text-transform: none; letter-spacing: .02em; }
+#qCard.on { color: color-mix(in srgb, var(--a2) 80%, var(--ink)); background: color-mix(in srgb, var(--a2) 10%, var(--card)); }
+.mini-card.mine > summary { font-weight: 500; }
+.mini-card [data-unc] { margin-top: 8px; }
