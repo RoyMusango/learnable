@@ -356,5 +356,24 @@ ${context}`;
     return chat(sys, [{ role: 'user', content: `QUESTION DU TP : ${step}\nCONSIGNE : ${hint}\n\nMA NOTE : ${note}` }]);
   }
 
-  global.AI = { hasKey, detectKey, providerLabel, chat, tutor, evaluate, makeQuiz, projectIdeas, listGeminiModels, gradeRecall, explainMistake, deepen, checkStep, AIError };
+  // Un échange avec le tuteur, condensé en une carte de révision (l'étudiant relit et corrige avant d'enregistrer)
+  const CARD_SCHEMA = {
+    type: 'OBJECT', properties: {
+      q: { type: 'STRING', description: 'le recto : une question précise et autonome' },
+      a: { type: 'STRING', description: 'le verso : la réponse courte' },
+    }, required: ['q', 'a'],
+  };
+  async function makeCard(context, question, answer) {
+    const sys = `Tu transformes un échange entre un étudiant et son tuteur (cours Advanced Machine Learning) en UNE carte de révision espacée.
+${PROFILE}
+Recto : une question précise, compréhensible sans l’échange (définis les notations utiles), qui appelle un vrai effort de rappel (pas une question oui/non).
+Verso : la réponse essentielle, 4 lignes au plus, formules en LaTeX entre $...$, sans phrase d’introduction. Reste fidèle à la réponse du tuteur et à la fiche.
+Si l’échange est une question d’examen posée par le tuteur, le recto reprend cette question et le verso la bonne réponse.
+
+FICHE DU COURS :
+${context}`;
+    return chat(sys, [{ role: 'user', content: `QUESTION OU MESSAGE DE L’ÉTUDIANT : ${question}\n\nRÉPONSE DU TUTEUR : ${answer}` }], CARD_SCHEMA);
+  }
+
+  global.AI = { hasKey, detectKey, providerLabel, chat, tutor, evaluate, makeQuiz, projectIdeas, listGeminiModels, gradeRecall, explainMistake, deepen, checkStep, makeCard, AIError };
 })(window);

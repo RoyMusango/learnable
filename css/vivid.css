@@ -382,3 +382,9 @@ details.lang-fix .key-row { margin-top: 8px; }
 #qCard.on { color: color-mix(in srgb, var(--a2) 80%, var(--ink)); background: color-mix(in srgb, var(--a2) 10%, var(--card)); }
 .mini-card.mine > summary { font-weight: 500; }
 .mini-card [data-unc] { margin-top: 8px; }
+.msg .to-card, .to-card { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; color: var(--muted); }
+.msg .to-card:hover, .to-card:hover { color: var(--a1); }
+.msg.ai .card-slot:not(:empty) { margin-top: 8px; width: 100%; }
+.card-maker textarea, .card-maker select { width: 100%; }
+.card-maker .field { margin-top: 10px; }
+.card-made { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 14px; border-radius: 999px; font-size: .9rem; background: color-mix(in srgb, var(--a2) 12%, var(--card)); color: color-mix(in srgb, var(--a2) 75%, var(--ink)); }

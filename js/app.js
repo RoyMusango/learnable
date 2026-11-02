@@ -111,6 +111,36 @@
     const saved = savedDetail(key);
     if (saved) show(saved.note, true); else gen();
   }
+  // « Ajouter aux cartes » sous une réponse de l'IA : l'IA propose recto et verso, l'étudiant les relit, choisit la notion, enregistre
+  function cardMaker(el, sec, question, answer) {
+    const key = 't:' + hashStr(question + '|' + answer.slice(0, 400));
+    const secOptions = cur => spaceChs().map(ch => `<optgroup label="${esc(ch.short)}">${ch.sections.map(id => `<option value="${id}" ${id === cur ? 'selected' : ''}>${esc(C.sections[id].title)}</option>`).join('')}</optgroup>`).join('');
+    const saved = () => { el.innerHTML = `<div class="card-made">${icon('check')} Dans tes cartes : elle arrivera dans ta prochaine <a class="link" href="#cards">révision</a>. <button class="link small" data-cm="undo">Retirer</button></div>`;
+      el.querySelector('[data-cm="undo"]').onclick = () => { dropUserCard(key); toast('Carte retirée de tes révisions.', 3000); el.innerHTML = ''; }; };
+    if (isUserCard(key)) return saved();
+    const form = (q, a, note) => {
+      el.innerHTML = `<div class="ai-box card-maker"><span class="eyebrow">${icon('flip')} Nouvelle carte de révision</span>${note ? `<p class="small muted">${note}</p>` : ''}
+        <label class="field"><span>Recto : la question</span><textarea data-cm="q" rows="2">${esc(q)}</textarea></label>
+        <label class="field"><span>Verso : la réponse</span><textarea data-cm="a" rows="4">${esc(a)}</textarea></label>
+        <label class="field"><span>Notion</span><select data-cm="sec">${secOptions(sec)}</select></label>
+        <p class="small muted">Relis et corrige si besoin. Formules entre $…$, comme dans les fiches.</p>
+        <div class="row"><button class="btn small" data-cm="save">${icon('check')} Enregistrer la carte</button><button class="btn quiet small" data-cm="cancel">Annuler</button></div></div>`;
+      const f = k => el.querySelector(`[data-cm="${k}"]`);
+      f('cancel').onclick = () => { el.innerHTML = ''; };
+      f('save').onclick = () => {
+        const q2 = f('q').value.trim(), a2 = f('a').value.trim();
+        if (!q2 || !a2) { toast('Le recto et le verso doivent être remplis.', 3000); return; }
+        addUserCard(key, f('sec').value, esc(q2), richText(a2));
+        saved();
+      };
+    };
+    aiInto(el, () => AI.makeCard(C.plain(sec), question, answer), () => '').then(r => {
+      if (!el.isConnected) return;
+      if (r && r.q && r.a) form(r.q, r.a, 'Proposée par l’IA à partir de l’échange.');
+      else form(question, answer, 'L’IA n’a pas pu condenser l’échange : voici la question et la réponse complètes, à raccourcir toi-même.');
+    });
+  }
+
   // Correction d'une réponse écrite à une carte
   const VERDICT = { juste: ['good', 'check', 'Juste'], partiel: ['mid', 'bulb', 'Partiellement juste'], faux: ['bad', 'x', 'À corriger'] };
   function recallHtml(r) {
@@ -833,8 +863,18 @@
       if (push) history.push({ role: who === 'ai' ? 'assistant' : 'user', content: text });
       const el = document.createElement('div');
       el.className = 'msg ' + (who === 'ai' ? 'ai' : 'me');
-      el.innerHTML = `<span class="name">${who === 'ai' ? 'Tuteur' : 'Toi'}</span><div class="bubble">${who === 'ai' ? richText(text) : esc(text)}</div>`;
+      // Sous chaque réponse du tuteur à un message de l'étudiant : en faire une carte de révision
+      const prev = history.length >= 2 && history[history.length - 2];
+      const canCard = who === 'ai' && push && prev && prev.role === 'user';
+      el.innerHTML = `<span class="name">${who === 'ai' ? 'Tuteur' : 'Toi'}</span><div class="bubble">${who === 'ai' ? richText(text) : esc(text)}</div>`
+        + (canCard ? `<button class="link small to-card">${icon('flip')} Ajouter aux cartes de révision</button><div class="card-slot"></div>` : '');
       chat.appendChild(el); el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      if (canCard) {
+        const before = history.length >= 3 ? history[history.length - 3] : null;   // la question du tuteur à laquelle l'étudiant répondait (oral d'examen)
+        const q = (before && before.role === 'assistant' && curMode === 'examiner' ? `Question du tuteur : ${before.content}\nRéponse de l’étudiant : ` : '') + prev.content;
+        const btn = el.querySelector('.to-card');
+        btn.onclick = () => { btn.remove(); cardMaker(el.querySelector('.card-slot'), curSec, q, text); };
+      }
     }
     async function send() {
       const txt = input.value.trim(); if (!txt || busy) return;
@@ -913,7 +953,11 @@
     $('#mGo', box).onclick = async () => {
       const q = $('#mQ', box).value.trim(); if (!q || !AI.hasKey()) return;
       $('#mA', box).innerHTML = '<p class="thinking">Le tuteur réfléchit…</p>';
-      try { const r = await AI.tutor(C.plain(sec), [{ role: 'user', content: q }], 'explain'); $('#mA', box).innerHTML = `<div class="review">${richText(r)}</div>`; }
+      try {
+        const r = await AI.tutor(C.plain(sec), [{ role: 'user', content: q }], 'explain');
+        $('#mA', box).innerHTML = `<div class="review">${richText(r)}</div><button class="link small to-card" id="mCard">${icon('flip')} Ajouter aux cartes de révision</button><div class="card-slot" id="mSlot"></div>`;
+        $('#mCard', box).onclick = () => { $('#mCard', box).remove(); cardMaker($('#mSlot', box), sec, q, r); };
+      }
       catch (e) { $('#mA', box).innerHTML = `<p class="err">${esc(e.message)}</p>`; }
     };
   };
