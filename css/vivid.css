@@ -391,3 +391,11 @@ details.lang-fix .key-row { margin-top: 8px; }
 
 /* Code en ligne venu de `…` (cartes ajoutées, réponses de l'IA) ; les règles plus précises (.fiche, .fn) gardent la main */
 :where(#view, #modalBox) :not(pre) > code { font: .88em Consolas, 'Cascadia Code', Menlo, monospace; background: color-mix(in srgb, var(--a1) 10%, var(--card)); padding: 1px 6px; border-radius: 6px; word-break: break-word; }
+
+/* « Lire la figure » : axes, points, couleurs et lecture attendue d'un graphique de TP */
+.axes-box { margin: 12px 0 6px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--a1) 7%, var(--card)); border: 1px solid color-mix(in srgb, var(--a1) 28%, var(--line)); }
+.axes-tag { display: inline-block; margin-bottom: 8px; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: color-mix(in srgb, var(--a1) 85%, var(--ink)); }
+.axes-box dl { display: grid; grid-template-columns: max-content 1fr; gap: 7px 14px; margin: 0; }
+.axes-box dt { font-weight: 650; }
+.axes-box dd { margin: 0; }
+@media (max-width: 560px) { .axes-box dl { grid-template-columns: 1fr; gap: 2px; } .axes-box dd { margin-bottom: 8px; } }

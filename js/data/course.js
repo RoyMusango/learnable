@@ -48,6 +48,8 @@
     code: (src, lang = 'python') => `<pre class="code" data-lang="${lang}"><code>${esc(trimSrc(src))}</code></pre>`,
     // Liste des fonctions d'un morceau de code : [appel, explication]
     fns: rows => `<div class="fns">${rows.map(([sig, desc]) => `<div class="fn"><code>${esc(sig)}</code><div>${desc}</div></div>`).join('')}</div>`,
+    // « Lire la figure » : ce que représente chaque axe, un point, une couleur, et ce qu'on doit y voir. rows = [[élément, explication], …]
+    axes: rows => `<div class="axes-box"><span class="axes-tag">Lire la figure</span><dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div>`,
     // w = { id, title, intro, steps: [[titre, code, explication, sortie?], …], lang, after }
     walk(w) {
       const lang = w.lang || 'python';

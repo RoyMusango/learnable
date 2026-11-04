@@ -4,7 +4,7 @@
 // sans le code à rendre ni les réponses aux questions d'analyse.
 (function () {
   const R = String.raw;
-  const { pick, rnd, f, walk, fns } = COURSE.u;
+  const { pick, rnd, f, walk, fns, axes } = COURSE.u;
   const escHtml = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const code = (src, lang = 'python') => `<pre class="code" data-lang="${lang}"><code>${escHtml(src.replace(/^\n/, ''))}</code></pre>`;
   const sol = (title, html) => `<details class="sol-box"><summary>${title}</summary>${html}</details>`;
@@ -110,6 +110,10 @@ plt.show()
       ["plt.imshow(image, cmap=plt.cm.gray_r, interpolation='nearest')", R`dessine un tableau 2D comme une image, chaque nombre devenant une couleur. <code>gray_r</code> = gris inversé (0 en blanc, 16 en noir) ; <code>nearest</code> garde les gros pixels au lieu de les lisser.`],
       ["'Training: %i' % label", R`met l’entier <code>label</code> à la place de <code>%i</code> (ancienne syntaxe ; aujourd’hui on écrit <code>f"Training: {label}"</code>).`],
       ['plt.show()', R`affiche la figure. Elle est <b>hors</b> de la boucle (pas indentée) : une seule figure avec les 8 vignettes.`],
+    ]) + axes([
+      ['Pas d’axes', R`chaque vignette est une image 8 × 8 : une case = un pixel. Comme pour toute image, la ligne 0 est en haut et la colonne 0 à gauche (<code>plt.axis('off')</code> masque ces numéros).`],
+      ['Niveau de gris', R`la valeur du pixel, de 0 (blanc) à 16 (noir) avec <code>gray_r</code> : c’est ce nombre qui devient une des 64 coordonnées de l’image dans <code>digits.data</code>.`],
+      ['Titre', R`la vraie étiquette (<code>digits.target</code>), pas une prédiction : aucun modèle n’a encore tourné.`],
     ]) + R`<p><b>Ce que tu dois voir</b> : 2 lignes de 4 vignettes, les chiffres 0 à 7, très pixelisés.</p>`],
     ['Calculer l’ACP', R`
 from sklearn.decomposition import PCA
@@ -129,13 +133,22 @@ print(C.shape)
 r = acp.explained_variance_ratio_
 print(r[:2].round(3), r[:2].sum().round(3))
 print((r.cumsum() >= 0.90).argmax() + 1, "composantes pour 90 %")
-plt.plot(r)
+plt.plot(range(1, len(r) + 1), r, "o-")
+plt.xlabel("numéro j de la composante (1 = celle de plus grande variance)")
+plt.ylabel("part de variance expliquée r_j")
+plt.title("ACP des chiffres : variance portée par chaque composante")
 plt.show()
 `, fns([
       ['acp.explained_variance_ratio_', R`la part de la variance totale portée par chaque composante : 64 nombres décroissants, de somme 1. Le <b>tiret bas final</b> est une convention de scikit-learn : l’attribut a été <b>appris par <code>fit</code></b> et n’existe pas avant.`],
       ['r.cumsum()', R`la somme cumulée : 0,149 ; 0,285 ; … Le $k$-ième nombre est la part gardée par les $k$ premières composantes.`],
       ['(r.cumsum() >= 0.90).argmax() + 1', R`le tableau de booléens vaut True à partir du rang où l’on atteint 90 % ; <code>argmax</code> renvoie la position du premier True, comptée à partir de 0, d’où le +1.`],
-      ['plt.plot(r)', R`trace les 64 parts en fonction de leur rang : une courbe qui chute vite puis s’aplatit.`],
+      ['plt.plot(range(1, len(r) + 1), r, "o-")', R`trace les 64 parts en fonction du numéro de la composante. On donne les abscisses 1 à 64 explicitement : avec <code>plt.plot(r)</code> seul (l’énoncé), matplotlib numérote à partir de 0 et la 1re composante est dessinée en $x=0$. <code>"o-"</code> : un rond par composante, reliés par un trait.`],
+      ['plt.xlabel(…), plt.ylabel(…), plt.title(…)', R`nomment l’axe horizontal, l’axe vertical et la figure. Sans eux, un graphique ne se lit pas : prends l’habitude de les écrire à chaque figure, surtout dans un rapport.`],
+    ]) + axes([
+      ['Axe horizontal', R`le numéro $j$ de la composante principale, de 1 à 64. Les composantes sont rangées de la plus grande variance à la plus petite : c’est un <b>rang</b>, pas une grandeur mesurée.`],
+      ['Axe vertical', R`$r_j=\lambda_j/\sum_k\lambda_k$ : la fraction de la variance totale des pixels portée par la composante $j$ ($\lambda_j$ = $j$-ième valeur propre de la matrice de covariance). 0,149 pour $j=1$ ; les 64 hauteurs somment à 1.`],
+      ['Un point', R`une composante. La courbe descend forcément, puisque les composantes sont triées.`],
+      ['À lire', R`la vitesse de décroissance. Si les premiers points portent presque tout puis la courbe s’écrase (un « coude »), quelques composantes résument bien les données. Ici, la courbe chute vite sur les 5 premières composantes puis s’aplatit (un coude vers 5 à 10) ; mais la longue traîne compte encore : chaque composante suivante porte peu, et il en faut 21 pour atteindre 90 %. Pour lire directement « combien de composantes pour X % », trace <code>r.cumsum()</code> : la courbe cumulée monte vers 1.`],
     ]) + R`<p><b>Lecture</b> : les 2 premières composantes ne gardent que 28,5 % de la variance, et il en faut 21 pour 90 %. Le dessin en 2D va donc forcément mélanger des chiffres.</p>`, `
 [0.149 0.136] 0.285
 21 composantes pour 90 %
@@ -143,23 +156,38 @@ plt.show()
     ['Placer chaque image dans le plan des 2 premières composantes', R`
 plt.scatter(C[:, 0], C[:, 1], c=y, cmap="tab10", s=10)
 plt.colorbar(label="chiffre")
+plt.xlabel("coordonnée sur la 1re composante")
+plt.ylabel("coordonnée sur la 2e composante")
+plt.title("Les 1797 images projetées sur les 2 premières composantes")
 plt.show()
 `, fns([
       ['C[:, 0]', R`« toutes les lignes (<code>:</code>), colonne 0 » : la 1re coordonnée de chaque image. <code>C[:, 1]</code> : la 2e.`],
       ['plt.scatter(x, y, c=y, cmap="tab10", s=10)', R`nuage de points : un point par image, placé en (1re composante, 2e composante). <code>c=y</code> colore chaque point selon son chiffre, <code>tab10</code> choisit 10 couleurs bien distinctes, <code>s</code> est la taille des points.`],
       ['plt.colorbar(label="chiffre")', R`ajoute l’échelle des couleurs : quelle couleur pour quel chiffre.`],
+    ]) + axes([
+      ['Axe horizontal', R`<code>C[i, 0]</code> $=\langle x_i-\bar x,\,u_1\rangle$ : de combien l’image $i$ s’écarte de l’image moyenne $\bar x$ le long de la 1re direction principale $u_1$ (un vecteur de 64 poids, un par pixel, dans <code>acp.components_[0]</code>). 0 = comme l’image moyenne sur cette direction ; l’unité est celle des pixels.`],
+      ['Axe vertical', R`la même chose sur $u_2$, la direction de plus grande variance <b>perpendiculaire</b> à $u_1$.`],
+      ['Un point', R`une image (1797 points).`],
+      ['Couleur', R`le vrai chiffre. L’ACP ne l’a <b>pas</b> utilisé (elle est non supervisée) : la couleur sert seulement à vérifier si les directions trouvées séparent les chiffres.`],
+      ['À lire', R`deux points proches sont deux images qui se ressemblent <b>sur ces deux directions</b>. L’inverse est faux : le dessin est une ombre portée de l’espace à 64 dimensions, et deux images très différentes peuvent tomber au même endroit. Les axes n’ont pas de nom « physique » : pour savoir ce que mesure $u_1$, affiche <code>acp.components_[0].reshape(8, 8)</code> avec <code>imshow</code>, et regarde quels pixels pèsent.`],
     ]) + R`<p><b>Écart avec l’énoncé</b> : il écrit <code>plt.scatter(C[:,0], C[:,1], c=y, label=target_name)</code>. Un <code>label</code> nomme <b>une série</b> de points pour la légende ; avec une liste, il ne crée pas une légende par chiffre. La barre de couleurs, ou la boucle de l’étape suivante, répond à la question.</p>`],
     ['Un nuage par chiffre, avec une légende', R`
 plt.figure()
 for i in range(10):
     plt.scatter(C[y == i, 0], C[y == i, 1], s=10, label=str(i))
-plt.legend()
+plt.legend(title="chiffre")
+plt.xlabel("coordonnée sur la 1re composante")
+plt.ylabel("coordonnée sur la 2e composante")
 plt.title("ACP Digits")
 plt.show()
 `, fns([
       ['y == i', R`compare chaque étiquette à <code>i</code> : un tableau de 1797 booléens, True pour les images du chiffre <code>i</code>.`],
       ['C[y == i, 0]', R`<b>indexation par masque</b> : ne garde que les lignes où le masque vaut True, puis la colonne 0. C’est la façon numpy de filtrer des lignes ; tu la retrouveras dans tous les TP.`],
-      ['label=str(i)', R`le nom de la série, repris par <code>plt.legend()</code>.`],
+      ['label=str(i)', R`le nom de la série, repris par <code>plt.legend()</code> ; <code>title="chiffre"</code> donne un titre à la légende.`],
+    ]) + axes([
+      ['Axes', R`les mêmes qu’à l’étape précédente : coordonnées sur $u_1$ et $u_2$.`],
+      ['Couleur', R`une série par chiffre, nommée dans la légende. Les séries sont dessinées dans l’ordre 0 à 9 : le 9 recouvre les autres là où les nuages se chevauchent.`],
+      ['À lire', R`un chiffre est bien séparé si son nuage est compact et loin des autres (le 0, le 4) ; mal séparé s’il est étalé au milieu (le 5, le 8).`],
     ]) + R`<p><b>Deux différences avec l’énoncé, volontaires.</b> (1) L’énoncé indente <code>plt.legend()</code>, <code>plt.title()</code> et <code>plt.show()</code> <b>dans</b> la boucle : la figure s’afficherait 10 fois, un chiffre de plus à chaque fois. Hors de la boucle, une seule figure complète : c’est le « attention à l’indentation » de l’énoncé. (2) Ses couleurs <code>"rgbcmykrgb"</code> recommencent au 8e chiffre : 0 et 7, 1 et 8, 2 et 9 ont la même couleur. Sans <code>c=</code>, matplotlib donne une couleur différente à chaque série.</p>
 <p><b>Ce que tu dois voir</b> (centres des nuages, vérifiés) : le 0 en bas, le 4 à droite, le 3 à gauche, le 6 en bas à droite, le 7 et le 1 en haut ; le 5 et le 8 restent au centre, mêlés aux autres. Deux composantes séparent quelques chiffres, pas tous : cohérent avec les 28,5 %.</p>`],
   ],
@@ -211,12 +239,19 @@ Date
 style.use('fivethirtyeight')
 df['Value'].plot()
 plt.legend()
+plt.xlabel("date (un point par trimestre)")
+plt.ylabel("Value")
+plt.title("Série BIS-RE_QBE221200, 1973-2014")
 plt.show()
 `, fns([
       ["style.use('fivethirtyeight')", R`change l’apparence de tous les graphiques suivants (fond gris, traits épais), à la manière du site FiveThirtyEight. Purement esthétique.`],
       ["df['Value']", R`sélectionne une colonne : on obtient une <b>Series</b> (une colonne seule, avec son index). Dans l’énoncé, <code>df["High"]</code> est la colonne du prix le plus haut de chaque jour.`],
       ['.plot()', R`pandas trace la série avec matplotlib, l’index (les dates) en abscisse.`],
       ['plt.legend()', R`affiche le nom de la série (Value).`],
+    ]) + axes([
+      ['Axe horizontal', R`le temps : l’index Date, un point par trimestre (168 points), de 1973 à 2014. pandas l’y place tout seul parce que Date est l’index.`],
+      ['Axe vertical', R`la colonne Value. Le fichier ne donne pas l’unité ; d’après son nom, ce serait un indice de prix immobiliers de la Banque des règlements internationaux (BIS), à vérifier. Un indice se lit en <b>relatif</b> : de 12 à 152, la grandeur a été multipliée par 12,7 en 41 ans.`],
+      ['À lire', R`la tendance de long terme et les périodes de baisse. Une pente qui monte de plus en plus raide sur une échelle linéaire peut correspondre à une croissance au taux constant ; pour le voir, essaie <code>plt.yscale("log")</code> : une croissance à taux constant y devient une droite.`],
     ]) + R`<p><b>Ce que tu dois voir</b> : une courbe de 1973 à 2014, qui part de 12 et finit à 152.</p>`],
     ['Créer une table à partir d’un dictionnaire', R`
 web_stats = {'Day': [1, 2, 3, 4, 5, 6],
@@ -294,11 +329,20 @@ print(X_train.shape, y_train.shape)
 fig = plt.figure(figsize=(10, 6))
 ax = plt.axes(xlim=(-3, 3), ylim=(-10, 20))
 ax.plot(X_train[:, 0], y_train, 'o')
+ax.set_xlabel("x (l'unique caractéristique)")
+ax.set_ylabel("y (la valeur à prédire)")
+ax.set_title("100 exemples de régression")
 plt.show()
 `, fns([
       ['plt.figure(figsize=(10, 6))', R`une nouvelle figure de 10 × 6 pouces.`],
       ['plt.axes(xlim=(-3, 3), ylim=(-10, 20))', R`crée un repère aux bornes fixées et renvoie l’objet <code>ax</code>, sur lequel on dessine ensuite.`],
       ["ax.plot(X_train[:, 0], y_train, 'o')", R`$y$ en fonction de $x$. <code>X_train[:, 0]</code> extrait l’unique colonne en 1D ; <code>'o'</code> dessine des ronds sans les relier.`],
+      ['ax.set_xlabel(…), ax.set_ylabel(…), ax.set_title(…)', R`les mêmes que <code>plt.xlabel</code>… mais appliqués au repère <code>ax</code>. Avec un objet <code>ax</code>, les noms commencent par <code>set_</code>.`],
+    ]) + axes([
+      ['Axe horizontal', R`$x_i$, la seule caractéristique. <code>make_regression</code> la tire selon une loi normale centrée réduite : presque tous les points sont entre −3 et 3.`],
+      ['Axe vertical', R`$y_i=5+\text{pente}\times x_i+\text{bruit}$, après la division par 10.`],
+      ['Un point', R`un exemple $(x_i,y_i)$.`],
+      ['À lire', R`la tendance (les points montent : pente positive) et la dispersion verticale autour de cette tendance, qui est le bruit (écart type 2 après la division par 10). Aucun modèle ne peut faire mieux que ce bruit : c’est l’erreur irréductible.`],
     ])],
     ['Ajuster la droite', R`
 model = LinearRegression()
@@ -324,11 +368,19 @@ R2 : 0.847
     ['Tracer la droite sur les points', R`
 fig = plt.figure(figsize=(10, 6))
 ax = plt.axes(xlim=(-3, 3), ylim=(-10, 20))
-ax.plot(X_train[:, 0], y_train, 'o')
-ax.plot(X_train[:, 0], best_fit, 'r-')
+ax.plot(X_train[:, 0], y_train, 'o', label="données")
+ax.plot(X_train[:, 0], best_fit, 'r-', label="droite ajustée")
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.legend()
 plt.show()
 `, fns([
       ["ax.plot(X_train[:, 0], best_fit, 'r-')", R`relie les prédictions par un trait rouge (<code>'r-'</code>) : comme elles sont alignées, on voit la droite.`],
+      ['label=…, ax.legend()', R`nomment les deux séries et affichent la légende.`],
+    ]) + axes([
+      ['Axes', R`les mêmes qu’à l’étape 2.`],
+      ['Le trait rouge', R`$\hat y=\theta_0+\theta_1x$. La <b>pente</b> $\theta_1=4{,}83$ : quand $x$ augmente de 1, la prédiction augmente de 4,83. L’<b>ordonnée à l’origine</b> $\theta_0=4{,}98$ : la hauteur où la droite coupe l’axe vertical $x=0$.`],
+      ['À lire', R`la distance <b>verticale</b> entre un point et la droite est le résidu $y_i-\hat y_i$. Les moindres carrés minimisent la somme des carrés de ces distances verticales, pas des distances perpendiculaires à la droite : on cherche à prédire $y$, l’erreur se mesure donc sur $y$.`],
     ]) + R`<p><b>Deux lignes de l’énoncé à ne pas recopier</b> : <code>line, = ax.plot([], [], lw=2)</code> crée une courbe vide (reste d’un code d’animation, sans effet) ; <code>plt.plot(..., 'k-', color="r")</code> donne deux couleurs à la fois (noir par <code>'k-'</code>, rouge par <code>color</code>) : matplotlib garde le rouge et affiche l’avertissement « color is redundantly defined ».</p>`],
   ],
 })}
@@ -395,14 +447,25 @@ extent = -3.1, 3.1, -3.1, 3.1
 fig = plt.figure(figsize=(10, 6))
 plt.imshow(y_pred, cmap=cm.bwr, alpha=.9, interpolation='bilinear',
            extent=extent, origin='lower')
-plt.scatter(X_train[ix0, 0], X_train[ix0, 1], marker='o', color='red')
-plt.scatter(X_train[ix1, 0], X_train[ix1, 1], marker='x', color='blue')
+plt.scatter(X_train[ix0, 0], X_train[ix0, 1], marker='o', color='red', label="classe 0")
+plt.scatter(X_train[ix1, 0], X_train[ix1, 1], marker='x', color='blue', label="classe 1")
+plt.xlabel("x1 (caractéristique informative)")
+plt.ylabel("x2 (caractéristique sans information)")
+plt.title("Perceptron : fond = classe prédite, symboles = vraie classe")
+plt.legend()
 plt.show()
 `, fns([
       ['plt.imshow(y_pred, cmap=cm.bwr, …)', R`dessine le tableau comme une image, chaque case devenant un pixel : bleu pour −1, rouge pour +1 (<code>bwr</code> = <i>blue-white-red</i>). <code>alpha</code> règle la transparence, <code>extent</code> donne les coordonnées des bords (gauche, droite, bas, haut).`],
       ["origin='lower'", R`place la ligne 0 du tableau <b>en bas</b>. Par défaut, <code>imshow</code> la met en haut, comme pour une photo ; or la ligne 0 correspond à $x_2=-3{,}1$.`],
       ['X_train[ix0, 0]', R`la 1re coordonnée des points de classe 0 (on indexe par une liste de positions).`],
-      ["marker='o' / marker='x'", R`ronds rouges pour la classe 0, croix bleues pour la classe 1.`],
+      ["marker='o' / marker='x'", R`ronds rouges pour la classe 0, croix bleues pour la classe 1 ; <code>label</code> les nomme dans la légende.`],
+    ]) + axes([
+      ['Axe horizontal', R`$x_1$, la 1re caractéristique de chaque point (celle qui porte l’information).`],
+      ['Axe vertical', R`$x_2$, la 2e (du bruit). Un point du plan = un exemple possible ; ses deux coordonnées sont ses deux caractéristiques.`],
+      ['Fond', R`la classe <b>prédite</b> en chaque point du plan : rouge = classe 0, bleu = classe 1.`],
+      ['Symboles', R`les 100 exemples d’entraînement avec leur <b>vraie</b> classe.`],
+      ['La frontière', R`là où le fond change de couleur : la droite $\theta_0+\theta_1x_1+\theta_2x_2=0$, soit $x_2=-(\theta_0+\theta_1x_1)/\theta_2$. Comme $\theta_1=4{,}13$ est 6 fois plus grand que $\theta_2=0{,}66$, la prédiction dépend presque seulement de $x_1$ : la droite est presque verticale. Elle coupe l’axe $x_2=0$ en $x_1=-\theta_0/\theta_1=1/4{,}13\approx0{,}24$.`],
+      ['À lire', R`une erreur = un symbole sur un fond de l’autre couleur. Les points proches de la frontière sont ceux dont la prédiction est la plus fragile.`],
     ]) + R`<p><b>Écart avec l’énoncé, vérifié en traçant les deux versions</b> : l’énoncé n’écrit pas <code>origin='lower'</code>. Le fond est alors retourné de haut en bas : la frontière affichée est le reflet de la vraie par rapport à l’axe $x_2=0$, et des points bien classés semblent du mauvais côté. La fonction du problème 6 (<code>plot_decision_boundary</code>) l’écrit, elle.</p>
 <p><b>Ce que tu dois voir</b> : du rouge à gauche, du bleu à droite, séparés par une droite presque verticale qui coupe l’axe horizontal vers $x_1\approx0{,}24$. Quatre croix bleues, en bas près de la frontière, tombent dans le rouge : ce sont les 4 erreurs.</p>`],
   ],
@@ -457,12 +520,19 @@ table = pd.crosstab(y_test, y_chap)
 print(table)
 plt.matshow(table)
 plt.title("Matrice de Confusion")
-plt.colorbar()
+plt.xlabel("chiffre prédit")
+plt.ylabel("vrai chiffre")
+plt.colorbar(label="nombre d'images")
 plt.show()
 `, fns([
       ['digit_knn.predict(X_test)', R`le chiffre prédit pour chaque image de test : $\hat y$ (« y chapeau », d’où le nom <code>y_chap</code>).`],
       ['pd.crosstab(y_test, y_chap)', R`compte les couples (vrai chiffre, chiffre prédit) : une ligne par vrai chiffre (<code>row_0</code>), une colonne par prédiction (<code>col_0</code>). La diagonale compte les bonnes réponses (439), le reste les erreurs (11).`],
       ['plt.matshow(table)', R`dessine la table en carrés colorés : une diagonale claire sur fond sombre si le modèle est bon.`],
+    ]) + axes([
+      ['Lignes (axe vertical)', R`le <b>vrai</b> chiffre $i$ (<code>y_test</code>). Comme dans un tableau, la ligne 0 est <b>en haut</b>, pas en bas comme dans un graphique.`],
+      ['Colonnes (axe horizontal)', R`le chiffre <b>prédit</b> $j$ (<code>y_chap</code>). <code>matshow</code> met ces numéros en haut de la figure.`],
+      ['Case $(i, j)$', R`le nombre d’images de test dont le vrai chiffre est $i$ et que le modèle a lues comme $j$. Sa couleur suit l’échelle de droite.`],
+      ['À lire', R`la diagonale ($i=j$) compte les bonnes réponses ; toute case claire hors diagonale se lit « des $i$ pris pour des $j$ ». La somme d’une ligne est le nombre d’images de test du chiffre $i$ : divise par elle pour comparer des chiffres qui n’ont pas le même effectif. La matrice n’est pas symétrique : confondre 8 avec 3 n’implique pas confondre 3 avec 8.`],
     ]) + R`<p><b>Lecture</b> : la ligne 8 contient un 1 en colonne 1, un 2 en colonne 3 et un 1 en colonne 7 : quatre « 8 » mal lus, dont deux lus comme des « 3 », la confusion la plus fréquente. Avec 11 erreurs en tout, ne conclus rien de général sur les chiffres « difficiles ».</p>`, `
 col_0   0   1   2   3   4   5   6   7   8   9
 row_0
@@ -517,7 +587,10 @@ def plot_decision_boundary(X, y, model, xmin=-0.1, xmax=1.1, ymin=-0.1, ymax=1.1
     extent = xmin, xmax, ymin, ymax
     plt.imshow(ypred, cmap=cm.bwr, alpha=.9, interpolation='bilinear',
                extent=extent, origin='lower')
+    plt.colorbar(label=f"probabilité de la classe {model.classes_[0]}")
     plt.scatter(X[:, 0], X[:, 1], s=40, c=y, cmap=cm.bwr)
+    plt.xlabel("x1")
+    plt.ylabel("x2")
     plt.show()
 `, fns([
       ['xmin=-0.1, xmax=1.1, …', R`paramètres avec valeur par défaut : on peut les omettre à l’appel (cadre du XOR) ou les changer (demi-lunes).`],
@@ -526,7 +599,13 @@ def plot_decision_boundary(X, y, model, xmin=-0.1, xmax=1.1, ymin=-0.1, ymax=1.1
       ['np.c_[a, b]', R`colle deux colonnes côte à côte : un tableau 40 000 × 2, une ligne par point de la grille, le format $X$ qu’attend le modèle.`],
       ['model.predict_proba(...)[:, 0]', R`une colonne de probabilités par classe, dans l’ordre de <code>model.classes_</code> (ici $[-1, 1]$) ; <code>[:, 0]</code> garde la probabilité de la <b>première</b> classe, $-1$.`],
       ['.reshape(x1.shape)', R`remet les 40 000 valeurs en grille 200 × 200 pour <code>imshow</code>.`],
+      ['plt.colorbar(label=…)', R`l’échelle du fond, nommée d’après <code>model.classes_[0]</code>, la classe dont on dessine la probabilité.`],
       ['plt.scatter(..., c=y, cmap=cm.bwr)', R`les points colorés par leur étiquette avec la même palette : $-1$ en bleu, $+1$ en rouge.`],
+    ]) + axes([
+      ['Axes', R`les deux caractéristiques $x_1$ (horizontal) et $x_2$ (vertical) de chaque point. Pour le XOR, elles valent 0 ou 1 : les 4 points sont aux coins du carré.`],
+      ['Fond', R`en chaque point de la grille, la probabilité que le modèle donne à la <b>première</b> classe de <code>model.classes_</code> ($-1$ pour le XOR, 0 pour les demi-lunes) : rouge vers 1, bleu vers 0, blanc à 0,5.`],
+      ['Points', R`les exemples d’entraînement, colorés par leur vraie classe (la plus petite étiquette en bleu).`],
+      ['À lire', R`la zone blanche (probabilité 0,5) est la <b>frontière de décision</b>, là où le modèle hésite le plus. Un fond très saturé loin des points signifie que le modèle est sûr de lui là où il n’a vu aucune donnée : à garder en tête avant de faire confiance à une probabilité.`],
     ]) + R`<p><b>Lire les couleurs</b> : le fond est rouge là où la classe $-1$ est probable, alors que les points $-1$ sont bleus. Quand le modèle a raison, un point est donc sur un fond de l’autre couleur. Pour un dessin plus intuitif, remplace <code>[:, 0]</code> par <code>[:, 1]</code>.</p>`],
     ['Dessiner le SVM linéaire', R`
 plot_decision_boundary(X_train, y_train, clf)
@@ -555,6 +634,7 @@ Number of support vectors: 4
 np.random.seed(0)
 X_train, y_train = ds.make_moons(200, noise=0.20)
 plt.scatter(X_train[:, 0], X_train[:, 1], s=40, c=y_train, cmap=cm.bwr)
+plt.xlabel("x1"); plt.ylabel("x2"); plt.title("Demi-lunes : bleu = classe 0, rouge = classe 1")
 plt.show()
 clf = SVC(probability=True, C=100.0, gamma=0.1, kernel='rbf', random_state=0)
 clf.fit(X_train, y_train)
@@ -563,6 +643,10 @@ plot_decision_boundary(X_train, y_train, clf, xmin=-2.0, xmax=2.5, ymin=-1.5, ym
 `, fns([
       ['np.random.seed(0)', R`fixe la graine du générateur global de numpy, que <code>make_moons</code> utilise faute de <code>random_state</code> : les mêmes 200 points à chaque exécution.`],
       ['ds.make_moons(200, noise=0.20)', R`deux croissants emboîtés (classes 0 et 1), 100 points chacun, avec un bruit gaussien d’écart type 0,2.`],
+    ]) + axes([
+      ['Axes', R`les deux coordonnées $x_1$, $x_2$ de chaque point du plan.`],
+      ['Couleur', R`la classe : bleu = 0 (le croissant du haut), rouge = 1 (celui du bas, décalé à droite).`],
+      ['À lire', R`les deux croissants s’emboîtent : aucune droite ne les sépare, et le bruit (0,2) fait déborder des points chez le voisin. Un classifieur parfait sur ces 200 points apprendrait ce bruit.`],
     ]) + R`<p>L’énoncé (6g) ne fait que dessiner les points ; l’entraîner est la suite logique, comme à l’étape 5. Résultat : 94 % des points d’entraînement bien classés, avec 51 vecteurs de support sur 200. Le fond rouge marque ici la classe 0, dont les points sont bleus.</p>`, `
 0.94 51
 `],
@@ -586,7 +670,10 @@ def plot_decision_boundary(X, y, model, xmin=-0.1, xmax=1.1, ymin=-0.1, ymax=1.1
     ypred = ypred.reshape(x1.shape)
     plt.imshow(ypred, cmap=cm.bwr, alpha=.9, interpolation='bilinear',
                extent=(xmin, xmax, ymin, ymax), origin='lower')
+    plt.colorbar(label=f"probabilité de la classe {model.classes_[0]}")
     plt.scatter(X[:, 0], X[:, 1], s=40, c=y, cmap=cm.bwr)
+    plt.xlabel("x1")
+    plt.ylabel("x2")
     plt.show()
 `, R`<p>La même fonction qu’au problème 6 (explications là-bas).</p>`],
     ['Entraîner l’arbre', R`
@@ -605,7 +692,10 @@ print(clf.get_depth(), clf.get_n_leaves(), clf.score(X_train, y_train))
 `],
     ['Dessiner la frontière', R`
 plot_decision_boundary(X_train, y_train, clf, xmin=-2.0, xmax=2.5, ymin=-1.5, ymax=1.5)
-`, R`<p><b>Ce que tu dois voir</b> : une frontière en <b>escalier</b>, faite de segments horizontaux et verticaux, puisque chaque question ne porte que sur une coordonnée. Compare avec la courbe lisse du SVM gaussien.</p>`],
+`, axes([
+      ['Axes et fond', R`comme au problème 6 : $x_1$, $x_2$, et la probabilité de la classe 0. Pour un arbre, cette probabilité est la proportion de points de classe 0 dans la <b>feuille</b> où tombe le point : elle est constante sur chaque rectangle.`],
+      ['À lire', R`chaque bord de rectangle est un seuil de l’arbre (« $x_2\le0{,}28$ ? »). Les petites zones isolées autour d’un ou deux points sont la marque du sur-apprentissage ; <code>min_samples_leaf=4</code> les limite.`],
+    ]) + R`<p><b>Ce que tu dois voir</b> : une frontière en <b>escalier</b>, faite de segments horizontaux et verticaux, puisque chaque question ne porte que sur une coordonnée. Compare avec la courbe lisse du SVM gaussien.</p>`],
     ['Voir l’arbre lui-même', R`
 from sklearn.tree import plot_tree, export_text
 plt.figure(figsize=(14, 7))
@@ -615,6 +705,12 @@ print(export_text(clf, feature_names=["x1", "x2"], max_depth=2))
 `, fns([
       ['plot_tree(clf, filled=True, feature_names=…)', R`dessine l’arbre : chaque nœud indique sa question, son indice de Gini, son nombre de points et la répartition des classes ; <code>filled</code> colore selon la classe majoritaire. Remplace <code>export_graphviz</code> + <code>Source</code> de l’énoncé, qui demandent d’installer le logiciel graphviz.`],
       ['export_text(clf, …, max_depth=2)', R`le même arbre en texte ; <code>max_depth=2</code> n’en affiche que les 2 premiers niveaux (« truncated branch » marque la suite).`],
+    ]) + axes([
+      ['Pas d’axes', R`un schéma : chaque boîte est un <b>nœud</b>, la racine en haut contient les 200 points.`],
+      ['Dans une boîte', R`1re ligne : la question (<code>x2 <= 0.284</code>), absente dans les feuilles. <code>gini</code> : l’impureté, 0 si tous les points sont de la même classe, 0,5 si moitié-moitié. <code>samples</code> : le nombre de points d’entraînement arrivés là. <code>value</code> : combien de points de chaque classe, [classe 0, classe 1].`],
+      ['Les flèches', R`à gauche quand la réponse à la question est <b>vraie</b>, à droite quand elle est fausse (« True » et « False » sous la racine).`],
+      ['Couleur', R`la classe majoritaire (orange pour 0, bleu pour 1), d’autant plus foncée que le nœud est pur.`],
+      ['À lire', R`suis un point de la racine à une feuille : la feuille donne sa prédiction (la classe majoritaire de <code>value</code>). Une feuille avec très peu de <code>samples</code> est une règle apprise sur presque rien.`],
     ]), `
 |--- x2 <= 0.28
 |   |--- x1 <= -0.44
@@ -692,9 +788,9 @@ for ax, (name, m) in zip(axes, models.items()):
     ax.plot(Ns, Ein, label="E_in (entraînement)")
     ax.plot(Ns, Eout, label="E_out (test)")
     ax.set_title(name)
-    ax.set_xlabel("N")
+    ax.set_xlabel("N : nombre d'images d'entraînement")
     print(name, "E_in", round(Ein[-1], 3), "E_out", round(Eout[-1], 3))
-axes[0].set_ylabel("erreur")
+axes[0].set_ylabel("erreur (1 - exactitude)")
 axes[0].legend()
 plt.show()
 `, fns([
@@ -704,6 +800,11 @@ plt.show()
       ['m.fit(...)', R`<b>réentraîne de zéro</b> à chaque $N$ : <code>fit</code> oublie l’apprentissage précédent.`],
       ['1 - m.score(Xtr[:N], ytr[:N])', R`$E_{in}$ : l’erreur sur les images qui ont servi à apprendre.`],
       ['1 - m.score(Xte, yte)', R`$E_{out}$ : l’erreur sur les 599 images de test, toujours les mêmes.`],
+    ]) + axes([
+      ['Axe horizontal', R`$N$, le nombre d’images d’entraînement utilisées (50 à 1198).`],
+      ['Axe vertical', R`une erreur, entre 0 et 1 : la fraction d’images mal classées. Même échelle sur les trois graphiques (<code>sharey</code>), pour les comparer.`],
+      ['Deux courbes', R`$E_{in}$, l’erreur sur les $N$ images apprises, et $E_{out}$, l’erreur sur les 599 images de test (une estimation du vrai risque).`],
+      ['À lire', R`trois choses. (1) L’<b>écart vertical</b> $E_{out}-E_{in}$ : l’erreur de généralisation, ce que le modèle perd en passant à des images nouvelles. (2) Le <b>niveau</b> où $E_{out}$ se stabilise : la meilleure erreur atteignable par ce modèle. (3) La <b>pente</b> de $E_{out}$ à droite : si elle descend encore, plus de données aideraient ; si les deux courbes se sont rejointes en haut, seul un modèle plus riche aidera.`],
     ]), `
 arbre de profondeur 3 E_in 0.509 E_out 0.556
 kNN (k=1) E_in 0.0 E_out 0.015
@@ -766,6 +867,10 @@ plt.show()
 `, fns([
       ['Xtr[0].reshape(28, 28)', R`la 1re image est une ligne de 784 nombres ; <code>reshape</code> la replie en carré 28 × 28 pour l’afficher (le contraire de <code>.data</code> au problème 1).`],
       ['f"étiquette {ytr[0]}"', R`une f-string : l’expression entre accolades est remplacée par sa valeur.`],
+    ]) + axes([
+      ['Axes', R`les graduations sont des numéros de pixel : colonne 0 à 27 en horizontal, ligne 0 à 27 en vertical, la ligne 0 <b>en haut</b> (convention des images).`],
+      ['Niveau de gris', R`l’intensité du pixel, de 0 (blanc) à 255 (noir) avec <code>gray_r</code>.`],
+      ['À lire', R`le pixel (ligne $i$, colonne $j$) est la case $28i+j$ de la ligne de 784 nombres : c’est ainsi que <code>reshape</code> replie l’image. Les bords sont presque toujours blancs : ces pixels-là n’aident aucun classifieur.`],
     ]) + R`<p><b>Ce que tu dois voir</b> : un 5 manuscrit, titré « étiquette 5 ».</p>`],
     ['kNN et temps de calcul', R`
 from sklearn.neighbors import KNeighborsClassifier
@@ -920,6 +1025,16 @@ print(dens.sort_values("densité", ascending=False).to_string(index=False))
       ['tp0-ex1', 'profondeur3', R`Pourquoi l’erreur d’entraînement d’un arbre de profondeur 3 <b>augmente</b>-t-elle avec $N$ ?`, R`8 feuilles au plus pour 10 chiffres : plus il y a d’images, moins ces 8 feuilles peuvent toutes les ajuster. $E_{in}$ passe de 0,32 à 0,51.`],
       ['tp0-ex2', 'resultats', R`Exactitudes obtenues sur MNIST (fichiers du TP0) ?`, R`kNN $k=3$ : 97,15 % sur 2000 images de test ; forêt de 100 arbres : 97,05 % sur les 10 000.`],
       ['tp0-ex3', 'classement', R`Quel arrondissement sort le plus « dense » avec la méthode de l’énoncé, et pourquoi est-ce suspect ?`, R`Le 18e (rayon 0,0012) : un restaurant d’un autre arrondissement est collé à son barycentre. Les densités varient d’un facteur 175.`],
+      ['tp0-resolus', 'fig-variance', R`Courbe de variance expliquée de l’ACP : que représentent les deux axes, et que cherche-t-on à y lire ?`, R`Horizontal : le numéro $j$ de la composante (un rang, triées par variance décroissante). Vertical : $r_j=\lambda_j/\sum_k\lambda_k$, la part de la variance totale qu’elle porte. On lit la vitesse de décroissance : un « coude » net signifie que quelques composantes résument les données. Piège : <code>plt.plot(r)</code> seul numérote à partir de 0.`],
+      ['tp0-resolus', 'fig-acp', R`Nuage ACP des chiffres : que vaut la coordonnée horizontale d’une image, et pourquoi deux points superposés ne prouvent-ils pas que les images se ressemblent ?`, R`$\langle x_i-\bar x,\,u_1\rangle$ : l’écart à l’image moyenne le long de la direction de plus grande variance. Le dessin est une projection (une ombre) de 64 dimensions sur 2 : deux images différentes sur les 62 autres directions tombent au même endroit. Seul « éloignés sur le dessin ⇒ différentes » est sûr.`],
+      ['tp0-resolus', 'acp-nonsup', R`Pourquoi la direction de plus grande variance trouvée par l’ACP n’est-elle pas forcément la plus utile pour classer ?`, R`L’ACP est non supervisée : elle n’utilise que $X$ et maximise la variance, pas la séparation des classes. Une direction où les images varient beaucoup (l’épaisseur du trait, par exemple) peut ne rien dire du chiffre. Une méthode supervisée comme l’analyse discriminante linéaire (LDA) cherche les directions qui séparent les classes.`],
+      ['tp0-lineaires', 'fig-moindres', R`Sur le graphique de régression, quelle distance entre les points et la droite les moindres carrés minimisent-ils, et pourquoi celle-là ?`, R`La somme des carrés des distances <b>verticales</b> $y_i-\hat y_i$ (les résidus) : on veut prédire $y$ à partir de $x$, l’erreur se mesure donc sur $y$. Minimiser les distances perpendiculaires à la droite, sans privilégier de variable, donnerait la 1re composante de l’ACP.`],
+      ['tp0-lineaires', 'fig-frontiere', R`Perceptron avec $\theta_0=-1$ et $(\theta_1,\theta_2)=(4{,}13;\ 0{,}66)$ : décris sa frontière dans le plan $(x_1,x_2)$ sans la tracer.`, R`La droite $\theta_0+\theta_1x_1+\theta_2x_2=0$, soit $x_2=(1-4{,}13\,x_1)/0{,}66$ : presque verticale, car $\theta_1\gg\theta_2$ (la classe dépend surtout de $x_1$), et elle coupe l’axe $x_2=0$ en $x_1\approx0{,}24$. Le vecteur $(\theta_1,\theta_2)$ est perpendiculaire à la frontière et pointe vers la classe 1.`],
+      ['tp0-classif', 'fig-confusion', R`Matrice de confusion <code>pd.crosstab(y_test, y_pred)</code> : que sont les lignes, les colonnes, la diagonale, et comment lire la case (8, 3) = 2 ?`, R`Ligne = vrai chiffre, colonne = chiffre prédit, diagonale = bonnes réponses. (8, 3) = 2 : deux « 8 » ont été lus comme des « 3 ». Diviser chaque ligne par sa somme donne, pour chaque vrai chiffre, la part reconnue (sur la diagonale) et la part confondue avec chaque autre.`],
+      ['tp0-classif', 'fig-proba', R`Dans <code>plot_decision_boundary</code>, que représente la couleur du fond, et où se trouve la frontière de décision ?`, R`En chaque point $(x_1,x_2)$ du plan, la probabilité que le modèle donne à la 1re classe de <code>model.classes_</code>. La frontière est la courbe où cette probabilité vaut 0,5 (le blanc). Un fond très saturé loin de tout point signifie que le modèle extrapole avec assurance là où il n’a rien vu.`],
+      ['tp0-classif', 'fig-arbre', R`Pourquoi la frontière d’un arbre de décision est-elle en escalier, et que vaut la probabilité affichée sur un de ses rectangles ?`, R`Chaque nœud teste une seule coordonnée contre un seuil : tous les bords sont parallèles aux axes. La probabilité est la proportion de chaque classe parmi les points d’entraînement de la feuille, constante sur tout le rectangle.`],
+      ['tp0-ex1', 'fig-courbes', R`Courbes d’apprentissage ($E_{in}$ et $E_{out}$ en fonction de $N$) : quelles trois choses y lire, et quelle décision tirer de chacune ?`, R`(1) L’écart $E_{out}-E_{in}$ : grand = le modèle mémorise, il faut plus de données ou un modèle plus simple. (2) Le niveau où $E_{out}$ se stabilise : la meilleure erreur de ce modèle. (3) La pente à droite : si $E_{out}$ descend encore, ajouter des données aidera ; si les deux courbes se sont rejointes en haut, seul un modèle plus riche aidera.`],
+      ['tp0-ex1', 'biais-variance', R`Comment les courbes d’apprentissage montrent-elles le compromis biais-variance ?`, R`Le niveau vers lequel $E_{in}$ et $E_{out}$ convergent quand $N$ grandit reflète le biais (plus le bruit) : ce que le modèle ne peut pas représenter. L’écart entre les deux à $N$ donné reflète la variance : la dépendance à l’échantillon tiré. Modèle simple : niveau haut, écart faible. Modèle complexe : niveau bas, écart grand qui se referme avec $N$.`],
       ['tp0-ex3', 'robuste', R`Deux alternatives plus robustes au rayon « premier restaurant étranger » ?`, R`Un quantile des distances au barycentre (par ex. la médiane) ou l’aire de l’enveloppe convexe des restaurants de l’arrondissement.`],
     ],
     quiz: [
@@ -1095,6 +1210,10 @@ for row, eps in enumerate([0.05, 0.25]):
         ax.plot(ns, bound, "b", label="borne de Hoeffding")
         ax.plot(ns, p_emp, "k", lw=.8, label="simulation")
         ax.set_title(f"p = {p}, eps = {eps}")
+        if row == 1:
+            ax.set_xlabel("n (nombre de tirages)")
+        if col == 0:
+            ax.set_ylabel("P(|moyenne - p| >= eps)")
         if eps == 0.05:
             print(f"p = {p} : n=100 sim {p_emp[99]:.4f} ; n=500 sim {p_emp[499]:.4f} borne {bound[499]:.3f}")
 axes[0, 0].legend()
@@ -1105,7 +1224,15 @@ plt.show()
       ['enumerate([0.05, 0.25])', R`donne à la fois le numéro (la ligne du graphique) et la valeur de $\epsilon$.`],
       ['np.minimum(1, …)', R`plafonne la borne à 1, sinon elle écrase l’échelle du graphique (elle vaut jusqu’à 2).`],
       ['"b", "k", lw=.8', R`couleurs bleue (borne) et noire (simulation), comme dans l’énoncé ; <code>lw</code> = épaisseur du trait.`],
+      ['if row == 1: … if col == 0: …', R`nomme l’axe horizontal seulement sur la ligne du bas et l’axe vertical seulement sur la colonne de gauche : les axes étant partagés, inutile de répéter.`],
       ['plt.tight_layout()', R`resserre les marges pour que les titres ne se chevauchent pas.`],
+    ]) + axes([
+      ['Axe horizontal', R`$n$, le nombre de tirages de Bernoulli moyennés (1 à 1000).`],
+      ['Axe vertical', R`une probabilité : celle que la moyenne $\hat\mu_n$ s’écarte de la vraie valeur $p$ d’au moins $\epsilon$.`],
+      ['Courbe noire', R`la fréquence observée de cet écart sur les $R=2000$ expériences simulées.`],
+      ['Courbe bleue', R`la borne de Hoeffding $2e^{-2n\epsilon^2}$, plafonnée à 1.`],
+      ['La grille', R`une ligne par $\epsilon$ (0,05 en haut, 0,25 en bas), une colonne par $p$ (0,1 ; 0,5 ; 0,9).`],
+      ['À lire', R`la noire doit rester <b>sous</b> la bleue (sinon, erreur dans le code : la borne est un théorème). La distance entre les deux mesure le pessimisme de la borne : elle est la plus petite pour $p=0{,}5$, la variance maximale. Tant que la bleue est collée à 1, la borne ne garantit rien.`],
     ]) + R`<p>On recrée <code>rng</code> avec la graine 0 pour retrouver exactement les chiffres du tableau ci-dessous.</p>`, `
 p = 0.1 : n=100 sim 0.0925 ; n=500 sim 0.0005 borne 0.164
 p = 0.5 : n=100 sim 0.3190 ; n=500 sim 0.0245 borne 0.164
@@ -1203,13 +1330,20 @@ for ax, m in zip(axes, [25, 250, 2500]):
         ax.plot([j] * 50, Rn[:, j], "b.", ms=3)
         ax.hlines(Rg[j], j - 0.4, j + 0.4, color="k")
     ax.set_title(f"n = {2 * m}")
+    ax.set_ylabel("risque")
     print(f"n = {2 * m} : écart moyen |R_n - R| = {np.abs(Rn - Rg).mean():.3f}")
-plt.xlabel("classifieur")
+plt.xlabel("numéro j du classifieur")
 plt.show()
 `, fns([
       ['risques(*gen(rng, m))', R`l’étoile « déballe » le couple <code>(X, y)</code> renvoyé par <code>gen</code> en deux arguments.`],
       ['Rn[:, j]', R`les 50 valeurs de $R_n$ du classifieur $j$, une par jeu de données : les points bleus d’une colonne.`],
       ['ax.hlines(Rg[j], j - 0.4, j + 0.4)', R`un petit trait horizontal noir à la hauteur $R(g_j)$.`],
+    ]) + axes([
+      ['Axe horizontal', R`le numéro $j$ du classifieur, de 0 à 49. C’est une <b>étiquette</b>, pas une grandeur : l’ordre des colonnes ne veut rien dire.`],
+      ['Axe vertical', R`un risque (taux d’erreur), de 0 à 1.`],
+      ['Trait noir', R`$R(g_j)$, le vrai risque du classifieur $j$ (calculé sur 2 millions de points).`],
+      ['Points bleus', R`50 valeurs de $R_n(g_j)$, une par jeu de données de taille $n$.`],
+      ['À lire', R`la hauteur du paquet de points d’une colonne est la dispersion de $R_n$ autour de $R$. Elle rétrécit d’une ligne à l’autre ($n$ × 10, dispersion ÷ $\sqrt{10}$). Elle est nulle pour les classifieurs parfaits ou inversés ($R=0$ ou 1) et maximale vers $R=0{,}5$ : $R_n$ est une moyenne de Bernoulli de paramètre $R$, de variance $R(1-R)/n$.`],
     ]) + R`<p><b>Ce que tu dois voir</b> : autour de chaque trait noir, les points bleus sont dispersés à $n=50$ et collés au trait à $n=5000$ ; l’écart moyen est divisé par environ $\sqrt{10}$ à chaque ligne.</p>`, `
 n = 50 : écart moyen |R_n - R| = 0.018
 n = 500 : écart moyen |R_n - R| = 0.006
@@ -1221,13 +1355,22 @@ devs = np.array([np.max(np.abs(risques(*gen(rng, n // 2)) - Rg)) for _ in range(
 borne = math.sqrt(math.log(2 * H / 0.5) / (2 * n))
 print(f"médiane observée {np.median(devs):.3f} ; borne pour delta = 0,5 : {borne:.3f}")
 plt.hist(devs, bins=30)
-plt.xlabel("max |R(g) - R_n(g)|")
+plt.axvline(np.median(devs), color="k", ls="--", label="médiane observée")
+plt.axvline(borne, color="r", label="borne pour delta = 0,5")
+plt.xlabel("max |R(g) - R_n(g)| sur les 50 classifieurs")
+plt.ylabel("nombre de jeux (sur 1000)")
+plt.legend()
 plt.show()
 `, fns([
       ['np.max(np.abs(risques(…) - Rg))', R`pour un jeu de données : l’écart $|R_n(g)-R(g)|$ de chacun des 50 classifieurs, puis le <b>pire</b> d’entre eux. C’est la quantité que borne l’équation (7).`],
       ['math.sqrt(math.log(2 * H / 0.5) / (2 * n))', R`la borne $\sqrt{\frac1{2n}\ln\frac{2|\mathcal H|}\delta}$ avec $\delta=0{,}5$.`],
       ['np.median(devs)', R`la médiane : la moitié des jeux ont une déviation maximale plus petite. C’est donc la déviation « garantie avec probabilité 0,5 », celle à comparer à la borne pour $\delta=0{,}5$.`],
       ['plt.hist(devs, bins=30)', R`l’histogramme des 1000 valeurs, en 30 barres.`],
+      ['plt.axvline(x, …)', R`une droite verticale à l’abscisse $x$ : la médiane en tirets noirs, la borne en rouge.`],
+    ]) + axes([
+      ['Axe horizontal', R`pour un jeu de 50 points : l’écart du <b>pire</b> des 50 classifieurs, $\max_g|R(g)-R_n(g)|$.`],
+      ['Axe vertical', R`combien de jeux, parmi les 1000 simulés, tombent dans chaque barre.`],
+      ['À lire', R`la borne dit : « avec probabilité au moins $1-\delta=0{,}5$, l’écart est sous 0,230 ». En vrai, la moitié des jeux est sous 0,089 (la médiane) et presque tout l’histogramme est à gauche du trait rouge : la borne est <b>vraie mais lâche</b>, d’un facteur 2,6 ici, parce qu’elle traite les 50 classifieurs comme s’ils pouvaient se tromper indépendamment (borne de l’union).`],
     ]), `
 médiane observée 0.089 ; borne pour delta = 0,5 : 0.230
 `],
@@ -1237,11 +1380,18 @@ observe = np.quantile(devs, 1 - deltas)
 theorie = np.sqrt(np.log(2 * H / deltas) / (2 * n))
 plt.plot(deltas, observe, label="observé")
 plt.plot(deltas, theorie, label="borne")
-plt.xlabel("delta"); plt.legend(); plt.show()
+plt.xlabel("delta (probabilité d'échec tolérée)")
+plt.ylabel("écart garanti avec probabilité 1 - delta")
+plt.legend(); plt.show()
 print(f"delta = 0,05 : observé {np.quantile(devs, 0.95):.3f}, borne {math.sqrt(math.log(2 * H / 0.05) / (2 * n)):.3f}")
 `, fns([
       ['np.quantile(devs, 1 - deltas)', R`pour chaque $\delta$, la valeur que la déviation dépasse dans une fraction $\delta$ des jeux : « avec probabilité $1-\delta$, la déviation est inférieure à… ». Pour $\delta=0{,}5$, c’est la médiane.`],
       ['np.sqrt(np.log(2 * H / deltas) / (2 * n))', R`la borne pour les 100 valeurs de $\delta$ d’un coup (fonctions numpy, pas <code>math</code>, car <code>deltas</code> est un tableau).`],
+    ]) + axes([
+      ['Axe horizontal', R`$\delta$, la probabilité d’échec qu’on accepte : à gauche, une garantie très sûre ($\delta=0{,}01$), à droite, une garantie qui ne vaut rien ($\delta=1$).`],
+      ['Axe vertical', R`l’écart $\epsilon$ tel que $\max_g|R(g)-R_n(g)|\le\epsilon$ avec probabilité $1-\delta$.`],
+      ['Les deux courbes', R`« observé » : le quantile $1-\delta$ des 1000 déviations simulées ; « borne » : $\sqrt{\ln(2|\mathcal H|/\delta)/(2n)}$.`],
+      ['À lire', R`les deux montent vers la gauche : exiger plus de certitude coûte un écart plus grand. La borne reste au-dessus de l’observé partout, et elle ne monte qu’en $\sqrt{\ln(1/\delta)}$ : diviser $\delta$ par 10 coûte peu. C’est pour cela qu’on peut demander des garanties à 95 % ou 99 % sans exploser la taille d’échantillon.`],
     ]) + R`<p>Les deux courbes se rapprochent quand $\delta$ diminue : la borne est relativement plus précise dans le régime utile en pratique.</p>`, `
 delta = 0,05 : observé 0.149, borne 0.276
 `],
@@ -1371,6 +1521,12 @@ Pour se tromper avec probabilité au plus $\delta$, il suffit de $n\ge\frac1{\ep
       ['tp1-avant', 'erreur-sim', R`Écart type de la fréquence simulée d’un événement de probabilité $p$ sur $R$ répétitions ?`, R`$\sqrt{p(1-p)/R}$ : avec $p=0{,}1$ et $R=2000$, environ 0,0067.`],
       ['tp1-p1', 'n139', R`À partir de quel $n$ la borne $2e^{-2n\epsilon^2}$ passe-t-elle sous 1 pour $\epsilon=0{,}05$ ?`, R`$n>\frac{\ln2}{2\epsilon^2}\approx138{,}6$, donc $n=139$. Avant, la borne ne dit rien.`],
       ['tp1-ex', 'lfd224', R`Problème 2.24 ($f(x)=x^2$, droite par 2 points) : biais, variance, $E_{out}$ ?`, R`$\bar g=0$, biais $\frac15$, variance $\frac13$, $E_{out}=\frac8{15}\approx0{,}533$ (simulation : 0,199 ; 0,329 ; 0,528). Énoncé à vérifier dans le livre.`],
+      ['tp1-p1', 'fig-hoeffding', R`Graphiques de la partie 1 du TP1 : que sont l’abscisse, l’ordonnée et les deux courbes, et quelle relation entre elles doit toujours être vraie ?`, R`Abscisse : $n$, le nombre de tirages. Ordonnée : $P(|\hat\mu_n-p|\ge\epsilon)$. Noire : la fréquence simulée ; bleue : $2e^{-2n\epsilon^2}$. La noire doit rester sous la bleue, puisque la borne est un théorème ; la distance entre elles mesure le pessimisme de la borne.`],
+      ['tp1-p1', 'sens', R`Que garantit l’inégalité de Hoeffding, en une phrase sans formule, et dans quel cas ne s’applique-t-elle pas directement à un classifieur ?`, R`Qu’une moyenne de $n$ observations indépendantes et bornées est, avec une probabilité qui tend vers 1 exponentiellement vite en $n\epsilon^2$, à moins de $\epsilon$ de sa vraie valeur. Elle vaut pour un classifieur <b>fixé avant</b> de voir les données ; pour celui qu’on a choisi parce qu’il fait peu d’erreurs, il faut une borne uniforme sur toute la classe (borne de l’union, dimension VC).`],
+      ['tp1-p2', 'fig-colonnes', R`Figure 2 du TP1 (par classifieur, un trait noir et 50 points bleus) : que montrent-ils, et pourquoi la colonne d’un classifieur parfait n’a-t-elle aucune dispersion ?`, R`Le trait est $R(g_j)$, les points sont $R_n(g_j)$ sur 50 jeux de données. $R_n$ est une moyenne de $n$ Bernoulli de paramètre $R$, de variance $R(1-R)/n$ : nulle si $R=0$ ou $1$, maximale vers $0{,}5$, et divisée par 10 quand $n$ est multiplié par 10 (dispersion ÷ $\sqrt{10}$).`],
+      ['tp1-p2', 'fig-hist', R`Histogramme des $\max_g|R(g)-R_n(g)|$ (1000 jeux) : que compte une barre, et comment le comparer à la borne pour $\delta=0{,}5$ ?`, R`Le nombre de jeux dont la déviation du <b>pire</b> classifieur tombe dans cet intervalle. La borne promet « sous 0,230 avec probabilité au moins 0,5 » : on la compare donc à la médiane, 0,089. La borne est vraie mais lâche, d’un facteur 2,6.`],
+      ['tp1-p2', 'fig-delta', R`Courbe de l’écart garanti en fonction de $\delta$ : pourquoi monte-t-elle vers la gauche, et pourquoi lentement ?`, R`Un petit $\delta$ est une garantie plus sûre : il faut accepter un écart plus grand. La borne varie en $\sqrt{\ln(2|\mathcal H|/\delta)/(2n)}$ : diviser $\delta$ par 10 n’ajoute que $\ln10$ sous la racine. C’est pourquoi une garantie à 99 % coûte peu de données de plus qu’une garantie à 90 %.`],
+      ['tp1-p2', 'oral-test', R`Pourquoi l’erreur d’un modèle sur ses données d’entraînement ne prouve-t-elle pas qu’il marche ? (réponse d’oral)`, R`On l’a choisi justement parce qu’il fait peu d’erreurs sur ces données : son $R_n$ est biaisé vers le bas. Hoeffding ne vaut que pour un modèle fixé à l’avance ; pour un modèle choisi dans une classe $\mathcal H$, l’écart garanti grandit avec la richesse de $\mathcal H$ ($\ln|\mathcal H|$, ou la dimension VC). D’où un jeu de test jamais vu, sur lequel le modèle est à nouveau « fixé à l’avance ».`],
       ['tp1-preuve', 'lambda', R`Valeur de $\lambda$ qui optimise la borne de Chernoff dans la preuve de Hoeffding ?`, R`$\lambda=\frac{4t}{(b-a)^2}$, qui donne $e^{-2nt^2/(b-a)^2}$.`],
     ],
     quiz: [
@@ -1573,11 +1729,16 @@ X, y = tr[:, :2], tr[:, 2].astype(int)
 Xte, yte = te[:, :2], te[:, 2].astype(int)
 print(X.shape, np.bincount(y), Xte.shape, y[:3], y[50:53])
 plt.scatter(X[:, 0], X[:, 1], c=y, cmap="bwr")
+plt.xlabel("x1"); plt.ylabel("x2"); plt.title("XYtrain.dat : bleu = classe 0, rouge = classe 1")
 plt.show()
 `, fns([
       ['np.loadtxt("XYtrain.dat")', R`lit un fichier texte de nombres séparés par des espaces : un tableau 100 × 3.`],
       ['tr[:, :2], tr[:, 2]', R`les deux premières colonnes ($x_1,x_2$), puis la troisième (la classe). <code>.astype(int)</code> transforme 0.0 et 1.0 en entiers.`],
       ['np.bincount(y)', R`compte les occurrences de chaque entier : 50 points de chaque classe.`],
+    ]) + axes([
+      ['Axes', R`les deux caractéristiques $x_1$, $x_2$ de chaque point (les deux premières colonnes du fichier).`],
+      ['Couleur', R`la classe : bleu = 0, rouge = 1. Dans un vrai problème d’apprentissage actif, ces couleurs sont <b>inconnues</b> : c’est ce qu’on paie l’oracle pour révéler.`],
+      ['À lire', R`la zone où bleu et rouge se mélangent : c’est là que se joue la frontière, donc là que l’apprentissage actif va chercher ses questions. Les points loin de cette zone n’apprennent presque rien au modèle.`],
     ]) + R`<p><code>y[:3]</code> et <code>y[50:53]</code> montrent le piège d’ordre : les 50 premières lignes sont de classe 1.</p>`, `
 (100, 2) [50 50] (1000, 2) [1 1 1] [0 0 0]
 `],
@@ -1627,10 +1788,16 @@ for M, nom in [(P, "passif"), (A, "actif (moins confiant)")]:
     m, e = M.mean(axis=0), M.std(axis=0)
     plt.plot(ns, m, label=nom)
     plt.fill_between(ns, m - e, m + e, alpha=0.2)
-plt.xlabel("nombre de points étiquetés"); plt.ylabel("exactitude de test"); plt.legend(); plt.show()
+plt.xlabel("nombre de points étiquetés"); plt.ylabel("exactitude de test")
+plt.title("Moyenne sur 50 répétitions, bande = ± 1 écart type"); plt.legend(); plt.show()
 `, fns([
       ['M.mean(axis=0)', R`la moyenne de chaque colonne : la courbe moyenne.`],
       ['plt.fill_between(ns, m - e, m + e, alpha=0.2)', R`colorie la bande moyenne ± un écart type, en transparence : on voit d’un coup le niveau et la variabilité.`],
+    ]) + axes([
+      ['Axe horizontal', R`le nombre de points dont on a demandé l’étiquette à l’oracle, de 10 (l’ensemble initial) à 60 : le <b>budget</b> dépensé.`],
+      ['Axe vertical', R`l’exactitude du kNN sur les 1000 points de test, entraîné sur ces points étiquetés seulement.`],
+      ['Trait et bande', R`le trait est la moyenne des 50 répétitions ; la bande, ± un écart type : la part de chance d’une exécution à l’autre.`],
+      ['À lire', R`deux lectures. <b>Verticale</b> : à budget égal, quelle stratégie donne le meilleur modèle. <b>Horizontale</b> : pour un score visé (une hauteur), combien d’étiquettes chaque stratégie a dû payer ; la distance horizontale entre les courbes est le nombre d’étiquettes économisées. C’est la lecture qui correspond à la <b>complexité d’étiquetage</b> du cours. Une bande étroite signifie un résultat fiable d’une exécution à l’autre.`],
     ])],
   ],
 })}
@@ -1740,7 +1907,10 @@ for s in strats:
     plt.plot(ns, m, label=s)
     plt.fill_between(ns, m - e, m + e, alpha=0.15)
 plt.xlabel("points étiquetés"); plt.ylabel("exactitude"); plt.title(f"covariance {var}"); plt.legend(); plt.show()
-`, R`<p>Comme à la partie 1 : moyenne et bande d’un écart type.</p>`],
+`, R`<p>Comme à la partie 1 : moyenne et bande d’un écart type.</p>` + axes([
+      ['Axes', R`budget d’étiquettes (15 à 150, par pas de 5) et exactitude sur les 900 points de test.`],
+      ['À lire', R`le palier de départ à 0,650 : sans aucun point de la classe 2, le SVC ne peut pas la prédire. La stratégie qui quitte ce palier le plus tôt est celle qui a « découvert » la classe 2. À droite, toutes les courbes se rejoignent : à 150 points, tout le réservoir est étiqueté.`],
+    ])],
   ],
 })}
 <h4>Résultats obtenus (50 répétitions, données regénérées à chaque répétition, <code>verif_tp/tp2_binaire_3classes.py</code>)</h4>
@@ -1846,9 +2016,13 @@ for n in [50, 100, 200, 500]:
     print(f"n = {n:3d} : " + "  ".join(f"{s} {np.mean(res[s], axis=0)[i]:.3f}" for s in strats))
 for s in strats:
     plt.plot(ns, np.mean(res[s], axis=0), label=s)
-plt.xlabel("images étiquetées"); plt.ylabel("exactitude"); plt.legend(); plt.show()
+plt.xlabel("images étiquetées"); plt.ylabel("exactitude sur 10 000 images de test")
+plt.title("MNIST, forêt de 100 arbres"); plt.legend(); plt.show()
 `, fns([
       ['{s: [...] for i, s in enumerate(strats)}', R`un dictionnaire en compréhension : pour chaque stratégie, la liste de ses <code>REP</code> courbes. La graine <code>100 * r + i</code> est propre à chaque couple (répétition, stratégie).`],
+    ]) + axes([
+      ['Axes', R`budget d’images étiquetées (10 à 500) et exactitude sur les 10 000 images de test. Avec 10 chiffres, le hasard donne 0,1.`],
+      ['À lire', R`comme aux parties 1 et 2 : verticalement le gain à budget égal, horizontalement les étiquettes économisées. Ici il n’y a pas de bande : avec <code>REP = 10</code>, garde en tête que des écarts de 0,01 entre courbes peuvent venir du hasard.`],
     ]), `
 n =  50 : passif 0.554  moins confiant 0.569  marge 0.615  entropie 0.555
 n = 100 : passif 0.703  moins confiant 0.699  marge 0.746  entropie 0.690
@@ -1953,6 +2127,10 @@ comité de 5  moyenne 0.033  médiane 0.027  sous 3 % : 14/20
       ['tp2-mnist', 'marge-mnist', R`Quel critère gagne sur MNIST (forêt, 500 images) ?`, R`La marge : 0,615 contre 0,554 en passif à $n=50$, et dès $n=260$ le score final du passif (0,867).`],
       ['tp2-mnist', 'figure-1d', R`Erreurs des seuils $w^*$ et $w$ dans la figure 1D de la partie 4 ?`, R`$w^*$ : 2,5 % (moitié classe 0 du troisième bloc) ; $w$ : 5 % (le bloc de 5 % de classe 1 à gauche).`],
       ['tp2-binaire', 'ordre-fichier', R`Piège d’ordre de <code>XYtrain.dat</code> ?`, R`Les 50 points de classe 1 viennent d’abord : sélectionner les « premiers points de la classe 0 » avec <code>np.where(y == 0)</code>, pas par position.`],
+      ['tp2-binaire', 'fig-courbe-al', R`Courbe d’apprentissage actif (exactitude en fonction du nombre d’étiquettes) : quelles sont les deux lectures, et laquelle correspond à la complexité d’étiquetage ?`, R`Verticale : à budget égal, quelle stratégie donne le meilleur modèle. Horizontale : combien d’étiquettes chaque stratégie paie pour atteindre un score donné ; la distance horizontale entre les courbes est le nombre d’étiquettes économisées : c’est la complexité d’étiquetage du cours. La bande ± un écart type montre la part de chance.`],
+      ['tp2-binaire', 'quand-utile', R`D’après le TP2, quand l’apprentissage actif aide-t-il, et quand ne sert-il à rien ?`, R`Il aide avec un petit budget, quand l’incertitude est concentrée près d’une frontière ou qu’une classe manque au départ. Il ne sert à rien quand le budget couvre presque tout le réservoir, ou quand les classes se chevauchent : l’incertitude est partout et le critère choisit du bruit. Il peut même nuire en s’enfermant (partie 4).`],
+      ['tp2-3classes', 'fig-palier', R`Pourquoi les courbes de la partie 2 du TP2 partent-elles d’un palier à 0,650, et que signifie la stratégie qui le quitte la première ?`, R`L’ensemble initial n’a aucun point de la classe 2 : le SVC ne peut pas la prédire et perd environ un tiers du test. Quitter le palier, c’est avoir demandé un point de la classe 2 : la stratégie a découvert une classe absente au départ.`],
+      ['tp2-mnist', 'biais-echant', R`Pourquoi les points choisis par l’apprentissage actif ne forment-ils pas un échantillon représentatif, et quelle conséquence pour évaluer le modèle ?`, R`Ils sont concentrés là où le modèle hésite : leur distribution n’est pas celle des données. Une erreur mesurée sur eux est biaisée (pessimiste, puisqu’on a pris les cas difficiles) et le modèle peut s’enfermer dans une mauvaise région (partie 4). On évalue donc sur un test tiré au hasard, ou on repondère chaque point par l’inverse de sa probabilité d’avoir été demandé (importance weighting, IWAL).`],
       ['tp2-3classes', 'plafond', R`Score final (150 points) selon la covariance 0,1 ; 0,2 ; 0,4 ; 0,6 ?`, R`0,915 ; 0,807 ; 0,686 ; 0,619 pour toutes les stratégies : le plafond vient du recouvrement des classes.`],
     ],
     quiz: [
@@ -2368,11 +2546,18 @@ for nom, pol in politiques.items():
     R = regret_moyen(pol)
     plt.plot(R, label=nom)
     print(f"{nom:20s} regret à n = 2000 : {R[-1]:.1f}")
-plt.xlabel("t"); plt.ylabel("regret cumulé moyen"); plt.legend(); plt.show()
+plt.xlabel("t (nombre de tours joués)"); plt.ylabel("regret cumulé moyen")
+plt.title("Bras de moyennes 0,1 ; 0,05 ; 0,02 ; 0,01"); plt.legend(); plt.show()
 `, fns([
       ['lambda t, r, d: ETC(K, 50, r, d)', R`une petite fonction qui fixe les réglages ($m=50$) et ne garde que les trois arguments communs. Toutes les stratégies ont alors la même signature.`],
       ['politiques.items()', R`parcourt les couples (nom, fonction) du dictionnaire.`],
       ['"k--", "k:"', R`traits noirs en tirets (borne) et en pointillés (à l’aveugle).`],
+    ]) + axes([
+      ['Axe horizontal', R`$t$, le nombre de tours déjà joués (0 à 2000).`],
+      ['Axe vertical', R`le regret cumulé $\sum_{s\le t}\Delta_{a_s}$, moyenné sur 100 expériences : le gain espéré perdu par rapport à quelqu’un qui aurait joué le meilleur bras dès le début. Il ne peut que monter.`],
+      ['La pente', R`le regret par tour à cet instant : à quel point la stratégie joue encore de mauvais bras. Une <b>droite</b> (pente constante) signifie qu’elle n’apprend plus : c’est le cas « à l’aveugle », pente 0,055. Une courbe qui <b>s’aplatit</b> signifie qu’elle joue de moins en moins les mauvais bras.`],
+      ['Les tirets', R`$5{,}82\ln t$, la borne de Lai-Robbins : le regret minimal d’une bonne stratégie <b>quand $t\to\infty$</b>.`],
+      ['À lire', R`ETC explore bras par bras : sa courbe est plate pendant les 50 tirages du bras 0 (le meilleur), puis monte en trois rampes de plus en plus raides (pentes 0,05 ; 0,08 ; 0,09) jusqu’au tour 200, soit $50	imes0{,}22=11$, puis redevient plate s’il s’est engagé sur le bon bras. Une courbe sous les tirets à $t=2000$ ne contredit pas la borne, qui est asymptotique (fiche « Comparaison » ci-dessous). Ce qui compte à long terme, c’est la forme : logarithmique ou linéaire.`],
     ]) + R`<p>Compte quelques secondes par stratégie. Les chiffres diffèrent un peu du tableau ci-dessous (autre suite de tirages) : avec 100 répétitions, l’erreur-type est de 1 à 3 selon la stratégie.</p>`, `
 ETC m = 50           regret à n = 2000 : 14.6
 epsilon-greedy 0,1   regret à n = 2000 : 25.7
@@ -2402,6 +2587,9 @@ ${sol('Les deux points à expliquer dans le compte rendu', R`<ul><li><b>Passer s
       ['tp3-avant', 'div0', R`Pourquoi toutes les stratégies commencent-elles par tirer chaque bras une fois ?`, R`<code>rewards / draws</code> divise par zéro tant qu’un bras n’a jamais été tiré (sauf Thompson, qui part de Beta(1, 1)).`],
       ['tp3-bornes', 'kl-terme', R`Contribution de chaque bras sous-optimal au coefficient 5,82 de Lai-Robbins ?`, R`$\Delta_a/d(\mu_a;\mu^*)$ : 2,99 pour le bras à 0,05 ; 1,56 pour 0,02 ; 1,26 pour 0,01. Le bras le plus proche du meilleur coûte le plus cher.`],
       ['tp3-strategies', 'etc1000', R`Que donne ETC avec m = 1000 sur un horizon de 2000 ?`, R`L’exploration ($4\times1000$ tours) ne finit jamais. Avec une exploration bras par bras : $1000\times0{,}05=50$ exactement ; à tour de rôle, ce serait l’uniforme (110).`],
+      ['tp3-ucb-ts', 'fig-regret', R`Courbe de regret cumulé : que représentent les axes, et comment distinguer à l’œil une stratégie qui apprend d’une stratégie qui n’apprend plus ?`, R`Abscisse : $t$, le nombre de tours. Ordonnée : $\sum_{s\le t}\Delta_{a_s}$, le gain espéré perdu face à qui jouerait toujours le meilleur bras. La pente est le regret par tour : une droite (pente constante) signifie que la stratégie n’apprend plus ; une courbe qui s’aplatit (en $\ln t$) signifie qu’elle joue de moins en moins les mauvais bras.`],
+      ['tp3-ucb-ts', 'regret-sens', R`Pourquoi juger une stratégie de bandit par son regret plutôt que par son gain total ?`, R`Le gain total dépend surtout du problème (des moyennes $\mu_a$). Le regret le compare au meilleur possible, toujours jouer $\mu^*$ : il mesure le seul coût de ne pas savoir quel bras est le meilleur, c’est-à-dire le prix de l’exploration, et se compare aux bornes théoriques (en $\ln t$).`],
+      ['tp3-strategies', 'fig-etc', R`Forme de la courbe de regret d’ETC ($m=50$, exploration bras par bras, $\mu=(0{,}1;\,0{,}05;\,0{,}02;\,0{,}01)$) ?`, R`Plate pendant les 50 tirages du bras 0 (le meilleur), puis trois rampes de pentes 0,05 ; 0,08 ; 0,09 jusqu’au tour 200 (regret 11), puis plate si ETC s’engage sur le bon bras, ou une droite de pente $\Delta$ s’il s’engage sur un mauvais.`],
       ['tp3-ucb-ts', 'beta00', R`Piège de l’initialisation $\alpha(0)=\beta(0)=0$ de l’algorithme 3 de l’énoncé ?`, R`$\mathrm{Beta}(0,0)$ n’existe pas (<code>ValueError</code>) ; l’a priori uniforme correspond à $\mathrm{Beta}(1,1)$, d’où $\mathrm{Beta}(S_a+1,N_a-S_a+1)$.`],
     ],
     quiz: [
@@ -2520,6 +2708,14 @@ python gridworld.py -h                        # toutes les options
 <tr><td><code>util.Counter()</code></td><td>un dictionnaire dont les clés absentes valent 0 : parfait pour $v_0=0$ et $q_0=0$</td></tr>
 <tr><td><code>-i 100</code>, <code>-k 10</code></td><td>nombre d’itérations de value iteration, nombre d’épisodes</td></tr></table>
 <p>Le bruit (<code>--noise 0.2</code>) signifie : l’action voulue réussit 80 % du temps, sinon l’agent part de côté. C’est la fonction $T(s,a,s')$ du cours (${course('rl-mdp', 'fiche MDP')}). Les cases +1 et −1 sont « pré-terminales » : leur seule action (exit) mène à l’état terminal invisible.</p>
+${axes([
+  ['Les coordonnées', R`chaque case est un état $(x, y)$ : $x$ = la colonne, comptée à partir de 0 depuis la <b>gauche</b> ; $y$ = la ligne, comptée à partir de 0 depuis le <b>bas</b> (comme un repère de maths, pas comme une image). Sur BookGrid : départ en $(0,0)$ en bas à gauche, mur en $(1,1)$, sortie +1 en $(3,2)$ en haut à droite, sortie −1 en $(3,1)$ juste en dessous.`],
+  ['Fenêtre « VALUES »', R`le nombre au centre d’une case est $V(s)$ ; le petit triangle blanc contre un bord est l’action de la politique (vers le haut = nord). Couleur : vert d’autant plus vif que $V(s)$ est proche de la plus grande valeur affichée, rouge pour les valeurs négatives, noir pour 0. Le mur est gris ; un double carré marque une case de sortie.`],
+  ['Fenêtre « Q-VALUES »', R`chaque case est coupée en 4 triangles, un par action : le triangle du haut affiche $Q(s,\text{nord})$, celui de droite $Q(s,\text{est})$, etc. Les mêmes couleurs ; la meilleure action est écrite en blanc vif, les autres en gris.`],
+  ['Le rond bleu', R`la position actuelle de l’agent pendant un épisode.`],
+  ['Le titre en bas', R`ce qui est affiché : « VALUES AFTER 5 ITERATIONS » pour value iteration, « Q-VALUES AFTER 10 EPISODES » pour le q-learning.`],
+  ['À lire', R`les valeurs doivent décroître en s’éloignant de la sortie +1 (facteur $\gamma$ et risque de glisser à chaque pas). Les flèches de la politique suivent la pente des valeurs vers les cases vertes. En q-learning, une case encore à 0 est une case jamais visitée, ou visitée sans qu’aucune récompense ne soit encore remontée jusqu’à elle.`],
+])}
 ${walk({
   id: 'tp4-mdp', title: 'Explorer le MDP fourni, sans rien implémenter',
   intro: R`<p>Avant d’écrire value iteration, interroge le MDP toi-même : tu verras exactement ce que renvoient les méthodes que ton code appellera. Enregistre ce script dans le dossier <code>reinforcement_Python3</code> (il importe <code>gridworld.py</code> et <code>util.py</code>) et lance-le. Il ne contient aucune réponse du TP.</p>`,
@@ -2784,6 +2980,8 @@ python pacman.py -p ApproximateQAgent -a extractor=SimpleExtractor -x 50 -n 60 -
       ['tp4-analyse', 'actualise', R`Valeur actualisée d’une récompense $R$ obtenue après $k$ pas ?`, R`$\gamma^kR$ : avec $\gamma=0{,}9$ et $k=10$, $0{,}9^{10}\approx0{,}35$ fois $R$. Les living rewards s’ajoutent, chacun actualisé à son pas.`],
       ['tp4-pacman', 'simple-features', R`Caractéristiques de SimpleExtractor (lues dans featureExtractors.py) ?`, R`bias, nombre de fantômes à un pas, mange une pastille, distance à la pastille la plus proche divisée par la taille de la grille ; le tout divisé par 10.`],
       ['tp4-rapport', 'cible', R`Rôle du réseau cible (target network) dans un DQN ?`, R`Calculer la cible $r+\gamma\max_{a'}q(s',a')$ avec des poids figés, recopiés périodiquement, pour que la cible ne bouge pas à chaque mise à jour.`],
+      ['tp4-avant', 'coords', R`Dans GridWorld, que désigne l’état $(3, 2)$, et où est-il dans la fenêtre ?`, R`Colonne $x=3$ (la 4e depuis la gauche), ligne $y=2$ (la 3e depuis le <b>bas</b>) : en haut à droite sur BookGrid, la sortie +1. Les $y$ se comptent depuis le bas, comme dans un repère de maths, pas comme dans une image.`],
+      ['tp4-avant', 'fenetres', R`Fenêtre GridWorld : que montre une case en affichage VALUES, et en affichage Q-VALUES ?`, R`VALUES : $V(s)$ au centre et un petit triangle pour l’action de la politique ; vert si positif, rouge si négatif. Q-VALUES : 4 triangles, un par action, chacun avec $Q(s,a)$, la meilleure écrite en blanc vif. Le lien entre les deux : $V(s)=\max_aQ(s,a)$.`],
       ['tp4-rapport', 'depot', R`Que déposer pour RL1 et RL2, et pour RL3 ?`, R`RL1-RL2 : valueIterationAgents.py, qlearningAgents.py et un rapport (deux personnes au plus). RL3 : tous les fichiers du deep q-learning et un rapport sur les choix explorés.`],
     ],
     quiz: [
