@@ -388,3 +388,6 @@ details.lang-fix .key-row { margin-top: 8px; }
 .card-maker textarea, .card-maker select { width: 100%; }
 .card-maker .field { margin-top: 10px; }
 .card-made { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 14px; border-radius: 999px; font-size: .9rem; background: color-mix(in srgb, var(--a2) 12%, var(--card)); color: color-mix(in srgb, var(--a2) 75%, var(--ink)); }
+
+/* Code en ligne venu de `…` (cartes ajoutées, réponses de l'IA) ; les règles plus précises (.fiche, .fn) gardent la main */
+:where(#view, #modalBox) :not(pre) > code { font: .88em Consolas, 'Cascadia Code', Menlo, monospace; background: color-mix(in srgb, var(--a1) 10%, var(--card)); padding: 1px 6px; border-radius: 6px; word-break: break-word; }

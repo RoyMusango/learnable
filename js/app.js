@@ -74,8 +74,10 @@
   watchMath();
 
   // Texte produit par l'IA : on échappe le HTML, on garde les formules $…$ et un markdown minimal (gras, listes, paragraphes)
+  // `…` (markdown) devient du code en ligne ; s'applique à du texte déjà échappé
+  const inlineCode = h => h.replace(/`([^`\n<>]+)`/g, '<code>$1</code>');
   function richText(t) {
-    const blocks = esc(t).replace(/\r/g, '').split(/\n{2,}/);
+    const blocks = inlineCode(esc(t)).replace(/\r/g, '').split(/\n{2,}/);
     return blocks.map(b => {
       const lines = b.split('\n');
       if (lines.every(l => /^\s*([-*•]|\d+[.)])\s+/.test(l))) return `<ul>${lines.map(l => `<li>${l.replace(/^\s*([-*•]|\d+[.)])\s+/, '')}</li>`).join('')}</ul>`;
@@ -226,7 +228,7 @@
   // Cartes ajoutées par l'étudiant depuis les exercices : topics 'uc:<clé>' (donc synchronisées entre PC et téléphone),
   // révisées comme les cartes du cours. Retirer une carte vide son contenu (la fusion de la synchro garde l'horodatage le plus récent).
   const userCards = () => Object.entries(Store.state.topics).filter(([k, v]) => k.startsWith('uc:') && v.q && C.sections[v.sec])
-    .map(([k, v]) => ({ id: k, sec: v.sec, q: v.q, a: v.a, mine: true }));
+    .map(([k, v]) => ({ id: k, sec: v.sec, q: inlineCode(v.q), a: inlineCode(v.a), mine: true }));
   const cardList = () => C.cards.concat(userCards());
   const isUserCard = key => !!(T('uc:' + key) && T('uc:' + key).q);
   const addUserCard = (key, sec, q, a) => setT('uc:' + key, { score: 1, sec, q, a });
