@@ -56,7 +56,18 @@
     star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
     flip: '<path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.7L4 15.5M4 20v-4.5h4.5"/>',
     eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    // Rubriques
+    today: '<path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
+    cards: '<rect x="3.5" y="7.5" width="13" height="12.5" rx="2.5"/><path d="M7.5 4.5H18A2.5 2.5 0 0 1 20.5 7v10"/>',
+    quiz: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m14.5 7.5 3 3"/>',
+    course: '<path d="M12 6.5C10 5 7.5 4.5 4 4.5v13c3.5 0 6 .5 8 2 2-1.5 4.5-2 8-2v-13c-3.5 0-6 .5-8 2zM12 6.5v13"/>',
+    project: '<path d="m12 3.5 8.5 4.5-8.5 4.5L3.5 8z"/><path d="m3.5 12.5 8.5 4.5 8.5-4.5M3.5 16.5 12 21l8.5-4.5"/>',
+    progress: '<path d="M5 20v-8M12 20V4M19 20v-5"/>',
+    more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   };
+  ICONS.tutor = ICONS.chat; ICONS.settings = ICONS.gear;
+  // Version riche (ordinateur) ou légère (téléphone, tablette, animations réduites) : classe posée par index.html
+  const FX = () => document.documentElement.classList.contains('fx');
   const icon = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`;
 
   // ---------- Formules : rendu KaTeX automatique de tout ce qui s'affiche ----------
@@ -157,7 +168,15 @@
   document.title = L.title;
   $('.brand').innerHTML = `<span class="brand-mark"></span>${esc(L.appName)}`;
   const NAV = ['today', 'cards', 'quiz', 'course', 'tutor', 'project', 'progress'];
-  $('#nav').innerHTML = NAV.map(k => `<a href="#${k}" data-view="${k}">${esc(N[k])}</a>`).join('');
+  // Téléphone : quatre onglets en bas (les gestes de tous les jours) et un volet « Plus » ; ordinateur : colonne latérale
+  const TABS = ['today', 'cards', 'quiz', 'course'];
+  const MORE = [...NAV.filter(k => !TABS.includes(k)), 'settings'];
+  const navLink = k => `<a href="#${k}" data-view="${k}" class="${TABS.includes(k) ? 'tab' : ''}">${icon(k)}<span>${esc(N[k])}</span></a>`;
+  $('#nav').innerHTML = NAV.map(navLink).join('') + `<button class="more-btn" id="moreBtn" type="button" aria-expanded="false">${icon('more')}<span>Plus</span></button>`;
+  $('#moreBox').innerHTML = MORE.map(navLink).join('');
+  const closeMore = () => { $('#moreSheet').classList.add('hidden'); $('#moreBtn').setAttribute('aria-expanded', 'false'); };
+  $('#moreBtn').onclick = () => { const hidden = $('#moreSheet').classList.toggle('hidden'); $('#moreBtn').setAttribute('aria-expanded', String(!hidden)); };
+  $('#moreSheet').addEventListener('click', closeMore);
   $('#gearLink').href = '#settings';
   $('#gearLink').innerHTML = icon('gear');
   // Sélecteur d'espace, juste après la marque (sur téléphone, il prend une ligne entière)
@@ -174,7 +193,11 @@
   paintSpace();
   const THEME_KEY = 'applangues-theme'; // partagé avec les apps de langues (même adresse)
   const darkNow = () => (document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
-  function paintThemeBtn() { const d = darkNow(); $('#themeBtn').innerHTML = icon(d ? 'sun' : 'moon'); $('#themeBtn').title = d ? 'Passer en mode clair' : 'Passer en mode sombre'; }
+  function paintThemeBtn() {
+    const d = darkNow(), label = d ? 'Passer en mode clair' : 'Passer en mode sombre';
+    $('#themeBtn').innerHTML = icon(d ? 'sun' : 'moon'); $('#themeBtn').title = label; $('#themeBtn').setAttribute('aria-label', label);
+    const meta = $('meta[name="theme-color"]'); if (meta) meta.content = d ? '#0f0f13' : '#f7f6f2';
+  }
   $('#themeBtn').onclick = () => {
     const t = darkNow() ? 'light' : 'dark';
     document.documentElement.dataset.theme = t;
@@ -201,7 +224,7 @@
     chip.classList.toggle('done', m >= goal);
     const ss = Sync.enabled() ? Sync.status.state : 'off';
     const sTitle = { ok: 'Synchronisé', syncing: 'Synchronisation…', error: 'Synchro en erreur : ' + (Sync.status.error || ''), off: 'Synchro désactivée' }[ss];
-    chip.innerHTML = `<span>${m} / ${goal} min</span><span class="mini"><i style="width:${Math.min(100, m / goal * 100)}%"></i></span>${ss !== 'off' ? `<span class="sync-dot ${ss}" title="${esc(sTitle)}"></span>` : ''}`;
+    chip.innerHTML = `<span class="chip-label">Aujourd’hui</span><span class="chip-txt"><b>${m}</b> / ${goal}<span class="unit"> min</span></span><span class="mini"><i style="width:${Math.min(100, m / goal * 100)}%"></i></span>${ss !== 'off' ? `<span class="sync-dot ${ss}" title="${esc(sTitle)}"></span>` : ''}`;
   }
   window.addEventListener('sync-status', () => updateChip());
   window.addEventListener('sync-updated', () => { if (['today', 'progress', 'course', 'project'].includes(currentRoute())) go(); else updateChip(); });
@@ -333,6 +356,22 @@
     setTimeout(() => t.remove(), ms);
   }
 
+  // ---------- Effets (ordinateur uniquement) : compteur qui défile, reflet des cartes sous la souris ----------
+  function countUp(el) {
+    const to = el ? +el.dataset.count : 0;
+    if (!el || !FX() || to < 2) return;
+    const t0 = performance.now(), dur = 900;
+    const tick = now => { const k = Math.min(1, (now - t0) / dur); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1 && el.isConnected) requestAnimationFrame(tick); };
+    el.textContent = '0'; requestAnimationFrame(tick);
+  }
+  document.addEventListener('pointermove', e => {
+    if (!FX() || e.pointerType !== 'mouse') return;
+    const c = e.target.closest && e.target.closest('.step, .proj, .chapter, .map');
+    if (!c) return;
+    const r = c.getBoundingClientRect();
+    c.style.setProperty('--mx', (e.clientX - r.left) + 'px'); c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  }, { passive: true });
+
   // ---------- Routeur ----------
   const routes = {};
   const currentRoute = () => (location.hash.slice(1) || 'today').split('/')[0];
@@ -364,8 +403,11 @@
     document.body.classList.remove('in-chat');
     const parts = location.hash.slice(1).split('/').map(decodeURIComponent);
     const r = routes[currentRoute()] ? currentRoute() : 'today';
-    $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.view === (r === 'glossary' ? 'course' : r)));
-    const pj = $('#nav a[data-view="project"]'); if (pj) pj.textContent = curSpace() === 'tp' ? 'Séances' : N.project;
+    const shown = r === 'glossary' ? 'course' : r;
+    $$('#nav a, #moreBox a').forEach(a => a.classList.toggle('active', a.dataset.view === shown));
+    $$('a[data-view="project"] span').forEach(sp => { sp.textContent = curSpace() === 'tp' ? 'Séances' : N.project; });
+    $('#moreBtn').classList.toggle('active', MORE.includes(shown));
+    closeMore();
     area = null; currentSec = null;
     // Couleur propre à l'espace et à la page (vivid.css), puis entrée en douceur de la vue
     document.body.dataset.space = curSpace(); document.body.dataset.route = r;
@@ -447,11 +489,11 @@
     const plan = notionPlan(), queue = cardQueue(), reads = readSecs(), deep = toDeepen();
     const date = new Date().toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' });
 
-    const step = (n, key, title, desc, href, btn, disabled = false) => {
+    const step = (n, key, ico, title, desc, href, btn, disabled = false) => {
       const done = d.min[key], target = t[key], p = Math.min(100, done / target * 100);
-      return `<div class="step ${p >= 100 ? 'done' : ''}"><span class="num">${p >= 100 ? icon('check') : n}</span>
-        <h3>${title}</h3><span class="time">${Math.floor(done)} / ${target} min</span>
-        <div class="meter"><i style="width:${p}%"></i></div><div class="desc">${desc}</div>
+      return `<div class="step ${p >= 100 ? 'done' : ''}"><div class="step-top"><span class="step-ico">${icon(ico)}</span><span class="num">${p >= 100 ? icon('check') + ' Fait' : n}</span></div>
+        <h3>${title}</h3><div class="desc">${desc}</div>
+        <div class="step-foot"><div class="meter"><i style="width:${p}%"></i></div><span class="time">${Math.floor(done)} / ${target} min</span></div>
         ${disabled ? '' : `<a class="btn ${p >= 100 ? 'quiet' : ''}" href="${href}">${btn} ${icon('arrow')}</a>`}</div>`;
     };
 
@@ -471,24 +513,47 @@
       s2 = { title: 'Approfondir', desc: `Tous les chapitres actifs sont lus. ${deep ? `Explique <b>${esc(C.sections[deep].title)}</b> sans notes, ou ` : ''}<a class="link" href="#course">active un autre chapitre</a> pour prendre de l’avance.`, href: deep ? '#tutor/oral/' + deep : '#course', btn: deep ? 'L’expliquer' : 'Voir les chapitres' };
     }
 
-    const segs = ['vocab', 'gram', 'conv'].map(k => `<i class="${k}" style="width:${Math.min(100, d.min[k] / D * 100)}%"></i>`).join('');
+    // Bandeau du jour : anneau en trois couleurs (réviser, comprendre, appliquer) et les sept derniers jours
+    const R = 52, CIRC = 2 * Math.PI * R;
+    let acc = 0;
+    const arcs = ['vocab', 'conv', 'gram'].map(k => {
+      const len = Math.max(0, Math.min(d.min[k] / D, 1 - acc)) * CIRC, start = acc * CIRC;
+      acc += len / CIRC;
+      return len > 0.5 ? `<circle class="a-${k}" cx="60" cy="60" r="${R}" style="stroke-dasharray:${len.toFixed(1)} ${CIRC.toFixed(1)};stroke-dashoffset:${(-start).toFixed(1)}"/>` : '';
+    }).join('');
+    const week = Array.from({ length: 7 }, (_, k) => {
+      const day = Store.today(k - 6), m = Store.totalMin(day), p = Math.min(100, m / D * 100);
+      const lbl = new Date(day + 'T12:00:00').toLocaleDateString('fr-BE', { weekday: 'narrow' });
+      return `<div class="wd ${k === 6 ? 'now' : ''} ${p >= 100 ? 'full' : ''}" title="${day} : ${Math.round(m)} min"><i style="--p:${p}%"></i>${esc(lbl)}</div>`;
+    }).join('');
+    const nextHref = queue.length && d.min.vocab < t.vocab ? '#cards' : d.min.conv < t.conv || !reads.length ? s2.href : '#quiz';
+    const cta = total >= D ? [plan.next ? '#course/' + plan.next : '#course', 'Prendre de l’avance'] : [nextHref, total < 1 ? 'Commencer la séance' : 'Reprendre la séance'];
+
     view.innerHTML = `
-      <div class="today-head">
-        <div><span class="eyebrow">Aujourd’hui · ${SPACE_LABEL[curSpace()]}${streak() ? ` · ${icon('flame')} ${streak()} jour${streak() > 1 ? 's' : ''} d’affilée` : ''}</span>
+      <section class="hero">
+        <div class="hero-main">
+          <span class="eyebrow">Aujourd’hui · ${SPACE_LABEL[curSpace()]}${streak() ? ` <span class="streak">${icon('flame')} ${streak()} jour${streak() > 1 ? 's' : ''} d’affilée</span>` : ''}</span>
           <h1>${esc(date.charAt(0).toUpperCase() + date.slice(1))}</h1>
-          <p class="lead">${total >= D ? 'Séance du jour terminée. Ce que tu fais maintenant, c’est de l’avance.' : `Encore <b>${Math.ceil(left)} min</b>. Réviser, comprendre une notion, l’appliquer : dans cet ordre, chaque jour.`}</p></div>
-        <div class="big-num"><b>${Math.floor(total)}</b><span> / ${D} min</span></div>
-      </div>
-      <div class="day-meter">${segs}</div>
+          <p class="lead">${total >= D ? 'Séance du jour terminée. Ce que tu fais maintenant, c’est de l’avance.' : `Encore <b>${Math.ceil(left)} min</b>. Réviser, comprendre une notion, l’appliquer : dans cet ordre, chaque jour.`}</p>
+          <div class="hero-cta"><a class="btn light" href="${cta[0]}">${cta[1]} ${icon('arrow')}</a><div class="week" aria-label="Sept derniers jours">${week}</div></div>
+        </div>
+        <div class="hero-side">
+          <div class="ring" role="img" aria-label="${Math.floor(total)} minutes sur ${D}">
+            <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="${R}"/>${arcs}</svg>
+            <div class="ring-in"><b data-count="${Math.floor(total)}">${Math.floor(total)}</b><span>/ ${D} min</span></div>
+          </div>
+          <div class="ring-legend"><span><i class="l-vocab"></i>Réviser</span><span><i class="l-conv"></i>Comprendre</span><span><i class="l-gram"></i>Appliquer</span></div>
+        </div>
+      </section>
       ${total < D && d.skip ? `<div class="notice" style="margin-top:24px">Rappels coupés pour aujourd’hui. <button class="link" id="unskip">Les réactiver</button></div>` : ''}
       ${!reads.length ? `<div class="notice" style="margin-top:24px">Bienvenue. Le parcours commence par la première notion du chapitre ${esc(chOf(activeSecs()[0]).short)}. Une notion à la fois : tu la comprends, ses cartes entrent dans tes révisions, puis tu l’appliques.</div>` : ''}
 
       <section class="section">
         <div class="section-head"><h2>Ta séance</h2><span class="muted small">${D} minutes</span></div>
         <div class="steps">
-          ${step('01', 'vocab', 'Réviser', queue.length ? `<b>${queue.length}</b> carte${queue.length > 1 ? 's' : ''} : celles qui allaient s’oublier, puis celles des notions lues. Formule chaque réponse avant de retourner la carte.` : reads.length ? 'Rien à revoir pour l’instant : la mémoire travaille. Reviens demain.' : 'Les cartes d’une notion arrivent dès que tu l’as comprise.', '#cards', 'Réviser', !queue.length)}
-          ${step('02', 'conv', s2.title, s2.desc, s2.href, s2.btn)}
-          ${step('03', 'gram', 'Appliquer', reads.length ? `Une série de 8 exercices sur tes ${reads.length} notion${reads.length > 1 ? 's' : ''}, les plus fragiles d’abord : raisonnements et calculs, jamais du par cœur.` : 'Les exercices se débloquent avec ta première notion.', '#quiz', 'S’entraîner', !reads.length)}
+          ${step('01', 'vocab', 'cards', 'Réviser', queue.length ? `<b>${queue.length}</b> carte${queue.length > 1 ? 's' : ''} : celles qui allaient s’oublier, puis celles des notions lues. Formule chaque réponse avant de retourner la carte.` : reads.length ? 'Rien à revoir pour l’instant : la mémoire travaille. Reviens demain.' : 'Les cartes d’une notion arrivent dès que tu l’as comprise.', '#cards', 'Réviser', !queue.length)}
+          ${step('02', 'conv', 'course', s2.title, s2.desc, s2.href, s2.btn)}
+          ${step('03', 'gram', 'quiz', 'Appliquer', reads.length ? `Une série de 8 exercices sur tes ${reads.length} notion${reads.length > 1 ? 's' : ''}, les plus fragiles d’abord : raisonnements et calculs, jamais du par cœur.` : 'Les exercices se débloquent avec ta première notion.', '#quiz', 'S’entraîner', !reads.length)}
         </div>
       </section>
 
@@ -502,6 +567,7 @@
     const setSkip = v => { Store.day().skip = v; Store.save(); Store.sync(true); if (Sync.enabled()) Sync.syncNow(); go(); };
     const sk = $('#skipToday'); if (sk) sk.onclick = () => setSkip(true);
     const us = $('#unskip'); if (us) us.onclick = () => setSkip(false);
+    countUp($('[data-count]'));
   };
 
   // Carte d'un chapitre : une case par notion, colorée selon le palier atteint

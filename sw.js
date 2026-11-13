@@ -1,11 +1,12 @@
 // Service worker : l'app reste utilisable sans réseau (fiches, cartes, exercices ; le tuteur IA demande Internet).
 // Stratégie : on sert la copie en cache tout de suite et on la met à jour en arrière-plan.
 // Le nom du cache inclut le chemin de l'app pour ne pas se mélanger avec les apps de langues (même adresse).
-const VERSION = 'v20261104-1700';
+const VERSION = 'v20261113-1307';
 const CACHE = 'applangues' + self.location.pathname.replace(/sw\.js$/, '') + VERSION;
 const SHELL = [
-  './', './index.html', './css/style.css', './css/theme.css', './css/vivid.css', './manifest.webmanifest',
+  './', './index.html', './css/style.css', './css/theme.css', './css/vivid.css', './css/nova.css', './manifest.webmanifest',
   './fonts/jost-latin.woff2', './fonts/jost-latin-italic.woff2',
+  './img/contours-a.svg', './img/contours-b.svg', './img/surface-a.svg', './img/surface-b.svg', './img/courbes-a.svg', './img/courbes-b.svg',
   './icons/favicon.svg', './icons/favicon-32.png', './icons/icon-192.png',
   './js/vendor/katex/katex.min.css', './js/vendor/katex/katex.min.js', './js/vendor/katex/auto-render.min.js',
   './js/lang.js', './js/data/course.js', './js/data/slt.js', './js/data/al.js', './js/data/bandits.js', './js/data/rl.js', './js/data/ts.js',
