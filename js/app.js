@@ -372,6 +372,23 @@
     c.style.setProperty('--mx', (e.clientX - r.left) + 'px'); c.style.setProperty('--my', (e.clientY - r.top) + 'px');
   }, { passive: true });
 
+  // ---------- Images de fond : une figure par chapitre du cours et par TP, une pour le projet ----------
+  // Fichiers img/<nom>-a.svg (décor) et img/<nom>-b.svg (ce qu'on met en avant), fabriqués par verif_tp/fonds_*.mjs
+  const ART_IDS = ['slt', 'al', 'bd', 'rl', 'ts', 'tp0', 'tp1', 'tp2', 'tp3', 'tp4'];
+  const SPACE_ART = { revision: 'contours', projet: 'surface', tp: 'courbes' };
+  const artOf = chId => ART_IDS.includes(chId) ? chId : SPACE_ART[spaceOfCh(C.chapter(chId) || {})] || 'contours';
+  // Adresse complète : une url() relative rangée dans une variable CSS serait résolue depuis le dossier css/
+  const artUrl = (name, k) => `url(${new URL(`img/${name}-${k}.svg`, document.baseURI).href})`;
+  const artVars = chId => `--art-a:${artUrl(artOf(chId), 'a')};--art-b:${artUrl(artOf(chId), 'b')}`;
+  // Le fond suit le chapitre de la notion ouverte ; ailleurs, le premier chapitre actif de l'espace
+  function paintArt(sec) {
+    let ch = sec && C.sections[sec] ? C.sections[sec].ch : null;
+    if (!ch) { const act = activeChs().filter(id => spaceOfCh(C.chapter(id)) === curSpace()); ch = act[0] || null; }
+    const name = ch ? artOf(ch) : SPACE_ART[curSpace()];
+    document.body.style.setProperty('--art-a', artUrl(name, 'a')); document.body.style.setProperty('--art-b', artUrl(name, 'b'));
+    document.body.dataset.art = name;
+  }
+
   // ---------- Routeur ----------
   const routes = {};
   const currentRoute = () => (location.hash.slice(1) || 'today').split('/')[0];
@@ -412,6 +429,7 @@
     // Couleur propre à l'espace et à la page (vivid.css), puis entrée en douceur de la vue
     document.body.dataset.space = curSpace(); document.body.dataset.route = r;
     routes[r](parts[1], parts[2]);
+    paintArt(currentSec || [parts[1], parts[2]].find(x => x && C.sections[x]));
     addCopyButtons();
     const v = $('#view'); v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter');
     window.scrollTo(0, 0);
@@ -844,7 +862,7 @@
     view.innerHTML = (curSpace() === 'tp' ? head(...tpHead) : head(proj ? 'Espace Projet' : 'Cours', 'Les chapitres', proj ? 'Ce qu’il faut maîtriser à fond pour le projet et le TFE : Active learning, puis Bandits, puis le cas TFE. Chaque notion va de l’idée au savoir-faire chiffré, puis à la version précise et au lien avec la banque.' : 'Les chapitres actifs alimentent ta séance du jour, notion par notion, dans l’ordre du cours. Active un chapitre pas encore vu pour prendre de l’avance.'))
       + courseTabs('ch') + spaceChs().map(ch => {
         const on = activeChs().includes(ch.id), nRead = ch.sections.filter(isRead).length;
-        return `<div class="chapter ${on ? 'on' : ''}">
+        return `<div class="chapter ${on ? 'on' : ''}" style="${artVars(ch.id)}"><i class="ch-art" aria-hidden="true"></i>
           <div class="chapter-head"><div><span class="eyebrow">${ch.space === 'tp' ? `Séance de TP${ch.lab && ch.lab.graded ? ' · évaluée' : ''}` : ch.space === 'projet' ? 'Espace Projet' : ch.seen ? `Vu en cours le ${new Date(ch.seen).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long' })}` : 'Pas encore vu en cours'} · ${esc(ch.source)}</span>
             <h2>${esc(ch.title)}</h2><p class="muted">${esc(ch.pitch)}</p></div>
             <label class="check toggle"><input type="checkbox" data-ch="${ch.id}" ${on ? 'checked' : ''}> Dans ma séance</label></div>
@@ -1077,7 +1095,7 @@
       })() : '')
       + `<div class="proj-grid">${ranked.map(ch => {
         const it = interest(ch.id), isChosen = chosen && chosen.id === ch.id;
-        return `<div class="proj ${isChosen ? 'chosen' : ''}"><span class="eyebrow">${ch.seen ? 'Vu en cours' : 'Pas encore vu'} · maîtrise ${pct(chMastery(ch.id))} %</span><h3>${esc(ch.title)}</h3>
+        return `<div class="proj ${isChosen ? 'chosen' : ''}" style="${artVars(ch.id)}"><i class="ch-art" aria-hidden="true"></i><span class="eyebrow">${ch.seen ? 'Vu en cours' : 'Pas encore vu'} · maîtrise ${pct(chMastery(ch.id))} %</span><h3>${esc(ch.title)}</h3>
           <div class="stars" data-ch="${ch.id}" title="Ton intérêt">${[1, 2, 3, 4, 5].map(k => `<button data-v="${k}" class="${k <= it ? 'on' : ''}" aria-label="${k} sur 5">${icon('star')}</button>`).join('')}</div>
           <ul class="ideas">${(PROJECTS[ch.id] || []).map(([t, d, lvl]) => `<li><b>${esc(t)}</b> <span class="muted small">${'●'.repeat(lvl)}${'○'.repeat(3 - lvl)}</span><br><span class="small">${esc(d)}</span></li>`).join('')}</ul>
           <div class="row">${isChosen ? `<span class="ok-mark">${icon('check')} Chapitre du projet</span><button class="link small" data-unchoose="${ch.id}">Changer</button>` : `<button class="btn small ${chosen ? 'quiet' : ''}" data-choose="${ch.id}">Choisir ce chapitre</button>`}</div></div>`;
