@@ -110,7 +110,7 @@ $T_t$ : la <b>tendance</b> (moyenne locale) ; $S_t$ : la <b>saisonnalité</b>, m
 <p>Prenons une série multiplicative sans bruit : tendance $T=100$ la première année et $200$ la seconde, facteur saisonnier $1{,}2$ en été et $0{,}8$ en hiver. Les valeurs sont $120,80$ puis $240,160$. L’écart été-hiver vaut $40$ puis $80$ : il double avec le niveau. En log : $\ln120-\ln80=\ln240-\ln160=\ln1{,}5=0{,}405$, identique les deux années. Après le log, la saison est additive et d’amplitude constante.</p>
 <p><b>Précision du cours</b> : le log rend la saison additive dans le modèle A $x_t=T_tS_tR_t$ et dans le modèle B $x_t=T_tS_t+R_t$, mais il ne stabilise la variance dans le modèle B que si $R_t$ est petit devant $S_t$ (le bruit reste additif avant le log).</p>
 <h4>3. Estimer la tendance par ajustement de courbe</h4>
-<p>Sur une série éventuellement transformée (log) et <b>désaisonnalisée</b> (par exemple par une moyenne mobile annuelle), on ajuste une courbe par moindres carrés : polynôme, exponentielle (droite après log), <b>Gompertz</b> $\log x_t=a-br^t$ ($0<r<1$, soit $x_t=\exp(a-br^t)$), <b>logistique</b> $x_t=\dfrac a{1-be^{-ct}}$ (formule du slide 33). La fonction ajustée évalue la tendance (et le cycle).</p>
+<p>Sur une série éventuellement transformée (log) et <b>désaisonnalisée</b> (par exemple par une moyenne mobile annuelle), on ajuste une courbe par moindres carrés : polynôme, exponentielle (droite après log), <b>Gompertz</b> $\log x_t=a-br^t$ ($0\lt r\lt 1$, soit $x_t=\exp(a-br^t)$), <b>logistique</b> $x_t=\dfrac a{1-be^{-ct}}$ (formule du slide 33). La fonction ajustée évalue la tendance (et le cycle).</p>
 <p>Exemple du cours (série M, en log) : $y=4{,}814+0{,}010\,t$. Les résidus $\ln x_t-(4{,}814+0{,}010\,t)$ servent à étudier la saison. Calcul : à $t=100$, la tendance vaut $5{,}814$ en log, soit $e^{5{,}814}\approx335$. Si l’on observait $\ln x_{100}=6{,}0$ (valeur prise pour l’exercice), le résidu serait $0{,}186$, soit un facteur $e^{0{,}186}\approx1{,}20$ : 20 % au-dessus de la tendance, l’effet d’un mois de haute saison.</p>
 <h4>4. Pièges</h4>
 <ul><li>Saison et cycle : la saison a une période fixe et connue, le cycle non. Une différence saisonnière $\nabla_{12}$ ne traite pas un cycle économique.</li>
@@ -626,7 +626,7 @@ ${code(BIS_OUT, 'text')}
 <li>$V(l)=\mathrm{Var}_t(E_t(l))=\sigma^2(1+\psi_1^2+\dots+\psi_{l-1}^2)$, qui <b>augmente avec l’horizon</b> $l$.</li></ol></div>
 <p><b>Calcul récursif sans les $\psi$</b> : on prend $\mathbb E_t$ de la forme 1 :
 $$\hat X_t(l)=\sum_{j=1}^{p+d}\varphi_j\hat X_t(l-j)-\sum_{i=1}^q\theta_i[W_{t+l-i}],$$
-avec $[W_{t+l-i}]=0$ si $i<l$ (choc futur), $=W_{t+l-i}$ si $i\ge l$ (choc passé, estimé par le résidu), et $\hat X_t(l-j)=X_{t+l-j}$ si $l\le j$ (valeur déjà observée).</p>
+avec $[W_{t+l-i}]=0$ si $i\lt l$ (choc futur), $=W_{t+l-i}$ si $i\ge l$ (choc passé, estimé par le résidu), et $\hat X_t(l-j)=X_{t+l-j}$ si $l\le j$ (valeur déjà observée).</p>
 <div class="def"><b>Intervalle de prévision</b> : si $W_t\overset{\mathcal L}=\mathcal N(0,\sigma^2)$, $\hat X_t(l)$ est fixé par le passé et $E_t(l)\sim\mathcal N(0,V(l))$, donc $X_{t+l}\mid\text{passé}\sim\mathcal N(\hat X_t(l),V(l))$ et
 $$\mathbb P\big[X_{t+l}\in\hat X_t(l)\pm u_{\varepsilon/2}\sqrt{V(l)}\big]=1-\varepsilon$$
 ($u_{\varepsilon/2}$ : quantile de la loi normale, 1,96 à 95 %). Approximatif, car $\sigma^2$ et les $\psi_i$ sont estimés ; d’autant meilleur que $N$ est grand. Les prévisions sont peu sensibles aux erreurs d’estimation des paramètres, <b>si le modèle est correct</b>.</div>

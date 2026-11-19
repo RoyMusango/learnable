@@ -476,7 +476,7 @@ $$\epsilon=\sqrt{\frac1{2n}\ln\frac{2(en/d_{VC})^{d_{VC}}}{\delta}}\sim\sqrt{\fr
       ],
       'slt-growth': [
         () => { const n = rnd(3, 12); return { q: R`Rayons positifs sur $\mathbb R$ ($h(x)=\mathrm{sgn}(x-a)$) : que vaut $m_{\mathcal H}(${n})$ ?`, a: n + 1, tol: 0, expl: R`$m_{\mathcal H}(n)=n+1$ : $a$ peut se placer dans $n+1$ intervalles.` }; },
-        () => { const n = rnd(3, 12), v = binom(n + 1, 2) + 1; return { q: R`Intervalles positifs sur $\mathbb R$ : que vaut $m_{\mathcal H}(${n})$ ?`, a: v, tol: 0, expl: R`$\binom{n+1}2+1=\binom{${n + 1}}2+1=${v}$ (choisir 2 des $n+1$ emplacements pour $a<b$, plus le cas « tout négatif »).` }; },
+        () => { const n = rnd(3, 12), v = binom(n + 1, 2) + 1; return { q: R`Intervalles positifs sur $\mathbb R$ : que vaut $m_{\mathcal H}(${n})$ ?`, a: v, tol: 0, expl: R`$\binom{n+1}2+1=\binom{${n + 1}}2+1=${v}$ (choisir 2 des $n+1$ emplacements pour $a\lt b$, plus le cas « tout négatif »).` }; },
         () => { const n = rnd(3, 10); return { q: R`Ensembles convexes du plan : que vaut $m_{\mathcal H}(${n})$ ?`, a: 2 ** n, tol: 0, expl: R`Points sur un cercle : tous les étiquetages sont réalisables, $2^{${n}}=${2 ** n}$.` }; },
       ],
       'slt-bnk': [

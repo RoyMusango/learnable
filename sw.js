@@ -1,7 +1,7 @@
 // Service worker : l'app reste utilisable sans réseau (fiches, cartes, exercices ; le tuteur IA demande Internet).
 // Stratégie : on sert la copie en cache tout de suite et on la met à jour en arrière-plan.
 // Le nom du cache inclut le chemin de l'app pour ne pas se mélanger avec les apps de langues (même adresse).
-const VERSION = 'v20261113-1341';
+const VERSION = 'v20261119-1032';
 const CACHE = 'applangues' + self.location.pathname.replace(/sw\.js$/, '') + VERSION;
 const SHELL = [
   './', './index.html', './css/style.css', './css/theme.css', './css/vivid.css', './css/nova.css', './manifest.webmanifest',
