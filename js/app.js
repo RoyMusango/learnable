@@ -86,6 +86,16 @@
 
   // Texte produit par l'IA : on échappe le HTML, on garde les formules $…$ et un markdown minimal (gras, listes, paragraphes)
   // `…` (markdown) devient du code en ligne ; s'applique à du texte déjà échappé
+  // HTML venant du stockage (cartes ajoutées, import, synchro) : on retire scripts, cadres, styles,
+  // attributs d'événement (onclick…) et liens javascript: avant de l'afficher.
+  function sain(html) {
+    const doc = new DOMParser().parseFromString(`<body>${String(html == null ? '' : html)}</body>`, 'text/html');
+    doc.body.querySelectorAll('script, iframe, object, embed, style, link, meta, base, form, svg foreignObject').forEach(n => n.remove());
+    doc.body.querySelectorAll('*').forEach(n => [...n.attributes].forEach(at => {
+      if (/^on/i.test(at.name) || (/^(href|src|xlink:href|action|formaction)$/i.test(at.name) && /^\s*(javascript|data|vbscript):/i.test(at.value))) n.removeAttribute(at.name);
+    }));
+    return doc.body.innerHTML;
+  }
   const inlineCode = h => h.replace(/`([^`\n<>]+)`/g, '<code>$1</code>');
   function richText(t) {
     const blocks = inlineCode(esc(t)).replace(/\r/g, '').split(/\n{2,}/);
@@ -251,7 +261,7 @@
   // Cartes ajoutées par l'étudiant depuis les exercices : topics 'uc:<clé>' (donc synchronisées entre PC et téléphone),
   // révisées comme les cartes du cours. Retirer une carte vide son contenu (la fusion de la synchro garde l'horodatage le plus récent).
   const userCards = () => Object.entries(Store.state.topics).filter(([k, v]) => k.startsWith('uc:') && v.q && C.sections[v.sec])
-    .map(([k, v]) => ({ id: k, sec: v.sec, q: inlineCode(v.q), a: inlineCode(v.a), mine: true }));
+    .map(([k, v]) => ({ id: k, sec: v.sec, q: inlineCode(sain(v.q)), a: inlineCode(sain(v.a)), mine: true }));
   const cardList = () => C.cards.concat(userCards());
   const isUserCard = key => !!(T('uc:' + key) && T('uc:' + key).q);
   const addUserCard = (key, sec, q, a) => setT('uc:' + key, { score: 1, sec, q, a });
@@ -332,20 +342,36 @@
       const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = ko; document.head.appendChild(el);
     });
   }
+  // Lien de configuration (QR code) : rien n'est appliqué sans ton accord explicite.
+  // Sans cette étape, un lien piégé pouvait remplacer tes clés, ton jeton GitHub et même l'adresse du serveur IA.
   function importSetupFromHash() {
     const m = location.hash.match(/^#setup=([\w-]+)/);
     if (!m) return;
-    try {
-      const p = JSON.parse(fromB64url(m[1]));
-      if (p.g) { Store.setSharedKey('geminiKey', p.g); S().provider = 'gemini'; }
-      if (p.a) Store.setSharedKey('anKey', p.a);
-      if (p.o) { Store.setSharedKey('oaKey', p.o); if (p.ob) Store.setSharedKey('oaBase', p.ob); if (p.om) Store.setSharedKey('oaModel', p.om); }
-      if (p.p) S().provider = p.p;
-      if (p.t && p.r) Sync.setCfg({ token: p.t, repo: p.r });
-      Store.save();
-      setTimeout(() => toast('Appareil configuré : clé IA et synchro activées.', 5000), 300);
-    } catch (e) { }
-    history.replaceState(null, '', location.pathname + '#today');
+    history.replaceState(null, '', location.pathname + '#today'); // retire les clés de l'adresse
+    let p;
+    try { p = JSON.parse(fromB64url(m[1])) || {}; } catch (e) { return; }
+    const str = k => (typeof p[k] === 'string' && p[k].length < 400 ? p[k].trim() : '');
+    const g = str('g'), a = str('a'), o = str('o'), om = str('om'), t = str('t'), r = str('r'), prov = str('p');
+    let ob = str('ob');
+    try { if (ob && new URL(ob).protocol !== 'https:') ob = ''; } catch (e) { ob = ''; }
+    const repoOk = /^[\w.-]+\/[\w.-]+$/.test(r);
+    const quoi = [g && 'ta clé Gemini', a && 'ta clé Claude', o && `ta clé du serveur compatible OpenAI${ob ? ` (serveur <b>${esc(new URL(ob).host)}</b>)` : ''}`,
+      t && repoOk && `la synchronisation avec le dépôt GitHub <b>${esc(r)}</b>`].filter(Boolean);
+    if (!quoi.length) return;
+    const box = modal(`<span class="eyebrow">Lien de configuration</span><h2>Appliquer ces réglages ?</h2>
+      <p style="margin-top:12px">Ce lien veut remplacer : ${quoi.join(', ')}.</p>
+      <p class="muted small" style="margin-top:10px">Accepte seulement si tu viens de scanner ton propre QR code. Un lien envoyé par quelqu’un d’autre pourrait faire passer tes questions et ta progression par son compte.</p>
+      <div class="row"><button class="btn" id="setupOk" type="button">Appliquer</button><button class="btn quiet" data-close type="button">Refuser</button></div>`);
+    $('#setupOk', box).onclick = () => {
+      if (g) { Store.setSharedKey('geminiKey', g); S().provider = 'gemini'; }
+      if (a) Store.setSharedKey('anKey', a);
+      if (o) { Store.setSharedKey('oaKey', o); if (ob) Store.setSharedKey('oaBase', ob); if (om) Store.setSharedKey('oaModel', om); }
+      if (['gemini', 'anthropic', 'openai'].includes(prov)) S().provider = prov;
+      if (t && repoOk) Sync.setCfg({ token: t, repo: r });
+      Store.save(); closeModal();
+      if (Sync.enabled()) Sync.syncNow();
+      toast('Appareil configuré : clé IA et synchro activées.', 5000);
+    };
   }
 
   function toast(html, ms = 6000) {
@@ -443,6 +469,17 @@
     return $('#modalBox');
   }
   function closeModal() { $('#modal').classList.add('hidden'); }
+
+  // Questions à choix : touches 1 à 9 pour répondre (la touche Entrée valide déjà « Suivant »)
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]'))) return;
+    const n = '123456789'.indexOf(e.key);
+    if (n < 0) return;
+    const zone = $('#modal').classList.contains('hidden') ? '#view' : '#modalBox';
+    const blocs = $$(zone + ' .opts-col').filter(o => o.offsetParent);
+    const b = blocs.length && $$('.opt', blocs[blocs.length - 1])[n];
+    if (b && !b.disabled) { e.preventDefault(); b.click(); }
+  });
   $('#modal').addEventListener('click', e => { if (e.target.id === 'modal' || e.target.closest('[data-close]')) closeModal(); });
 
   const head = (eyebrow, title, lead = '') => `<div class="page-head"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ''}</div>`;
@@ -1368,8 +1405,9 @@
           <p class="small">${ntfy && ntfy.topic ? `Tu es déjà abonné au sujet <b style="user-select:all">${esc(ntfy.topic)}</b> pour tes langues : rien à faire, le Machine Learning y arrive aussi, avec la notion du jour dans le message.` : 'Les rappels passent par l’app ntfy, comme pour tes langues : abonne-toi au même sujet (voir AppLangues).'} Un rappel toutes les 2 h entre 8 h et 20 h tant que la séance du jour n’est pas faite.</p></div>`;
       try {
         await loadScript('js/vendor/qrcode.min.js');
+        if (!$('#qr')) return; // page quittée pendant le chargement
         new QRCode($('#qr'), { text: link, width: 208, height: 208, correctLevel: QRCode.CorrectLevel.M });
-      } catch (e) { $('#qr').textContent = 'QR code indisponible'; }
+      } catch (e) { if ($('#qr')) $('#qr').textContent = 'QR code indisponible'; }
       $('#copyLink').onclick = async () => { try { await navigator.clipboard.writeText(link); $('#copyLink').textContent = 'Lien copié'; } catch (e) { prompt('Copie ce lien :', link); } };
     }
     renderPhone();

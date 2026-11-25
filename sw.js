@@ -1,10 +1,10 @@
 // Service worker : l'app reste utilisable sans réseau (fiches, cartes, exercices ; le tuteur IA demande Internet).
 // Stratégie : on sert la copie en cache tout de suite et on la met à jour en arrière-plan.
 // Le nom du cache inclut le chemin de l'app pour ne pas se mélanger avec les apps de langues (même adresse).
-const VERSION = 'v20261119-1032';
+const VERSION = 'v20261125-securite';
 const CACHE = 'applangues' + self.location.pathname.replace(/sw\.js$/, '') + VERSION;
 const SHELL = [
-  './', './index.html', './css/style.css', './css/theme.css', './css/vivid.css', './css/nova.css', './manifest.webmanifest',
+  './', './index.html', './css/style.css', './css/theme.css', './css/vivid.css', './css/nova.css', './manifest.webmanifest', './js/boot.js',
   './fonts/jost-latin.woff2', './fonts/jost-latin-italic.woff2',
   './img/contours-a.svg', './img/contours-b.svg', './img/surface-a.svg', './img/surface-b.svg', './img/courbes-a.svg', './img/courbes-b.svg',
   './img/slt-a.svg', './img/slt-b.svg', './img/al-a.svg', './img/al-b.svg', './img/bd-a.svg', './img/bd-b.svg', './img/rl-a.svg', './img/rl-b.svg', './img/ts-a.svg', './img/ts-b.svg', './img/tp0-a.svg', './img/tp0-b.svg', './img/tp1-a.svg', './img/tp1-b.svg', './img/tp2-a.svg', './img/tp2-b.svg', './img/tp3-a.svg', './img/tp3-b.svg', './img/tp4-a.svg', './img/tp4-b.svg',

@@ -207,13 +207,49 @@
   function replaceState(s) { state = s; localStorage.setItem(KEY, JSON.stringify(state)); }
 
   // Le fichier exporté ne contient jamais les clés API
-  function exportData() { const copy = structuredClone(state); copy.settings.geminiKey = ''; copy.settings.oaKey = ''; copy.settings.anKey = ''; return JSON.stringify(copy, null, 1); }
+  // Réglages jamais écrits dans un fichier ni repris d'un fichier : clés API, adresse et modèles du serveur IA
+  // (un fichier piégé pourrait sinon envoyer tes clés et tes questions vers un serveur tiers).
+  const SECRET = ['geminiKey', 'oaKey', 'oaBase', 'oaModel', 'anKey', 'anModel', 'provider'];
+  function exportData() {
+    const copy = structuredClone(state);
+    for (const k of SECRET) delete copy.settings[k];
+    return JSON.stringify(copy, null, 1);
+  }
+  // Supprime récursivement les clés dangereuses (__proto__, constructor, prototype)
+  function propre(v, depth = 0) {
+    if (depth > 12) throw new Error('profondeur');
+    if (Array.isArray(v)) return v.map(x => propre(x, depth + 1));
+    if (v && typeof v === 'object') {
+      const o = {};
+      for (const [k, x] of Object.entries(v)) if (!['__proto__', 'constructor', 'prototype'].includes(k)) o[k] = propre(x, depth + 1);
+      return o;
+    }
+    return v;
+  }
+  const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
   function importData(json) {
-    const s = JSON.parse(json);
-    if (!s.settings || !s.days) throw new Error('format');
-    // Garde les clés API actuelles si le fichier importé n'en contient pas
-    for (const k of ['geminiKey', 'oaKey', 'anKey']) if (!s.settings[k]) s.settings[k] = state.settings[k];
-    localStorage.setItem(KEY, JSON.stringify(s)); load();
+    if (json.length > 20 * 1024 * 1024) throw new Error('taille');
+    const s = propre(JSON.parse(json));
+    if (!isObj(s) || !isObj(s.settings) || !isObj(s.days)) throw new Error('format');
+    const out = {};
+    // Chaque rubrique doit avoir le type attendu, sinon on garde la valeur par défaut
+    for (const k of Object.keys(DEFAULT)) {
+      const def = DEFAULT[k], v = s[k];
+      out[k] = Array.isArray(def) ? (Array.isArray(v) ? v : structuredClone(def))
+        : isObj(def) ? (isObj(v) ? v : structuredClone(def))
+        : (typeof v === typeof def ? v : def);
+    }
+    // Progression : chaque entrée doit être un objet
+    for (const k of ['topics', 'cards', 'days']) out[k] = Object.fromEntries(Object.entries(out[k]).filter(([, v]) => isObj(v)));
+    // Réglages : seulement les champs connus, du bon type ; les clés et le serveur IA actuels sont conservés
+    const set = structuredClone(state.settings);
+    for (const [k, v] of Object.entries(s.settings)) {
+      if (SECRET.includes(k) || !(k in DEFAULT.settings || k in set)) continue;
+      const ref = k in DEFAULT.settings ? DEFAULT.settings[k] : set[k];
+      if (ref === undefined || ref === null || typeof v === typeof ref) set[k] = v;
+    }
+    out.settings = set;
+    localStorage.setItem(KEY, JSON.stringify(out)); load();
   }
 
   load();

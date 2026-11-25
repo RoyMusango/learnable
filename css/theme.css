@@ -218,3 +218,9 @@ pre.code code { background: none; padding: 0; font: inherit; }
 .sol-box > summary { cursor: pointer; color: var(--accent); font-weight: 500; }
 .sol-box[open] > summary { margin-bottom: 8px; }
 .road-group { margin: 18px 0 6px; font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+
+/* Questions à choix : numéro de touche affiché sur ordinateur (touches 1 à 9) */
+@media (hover: hover) and (pointer: fine) {
+  .opts-col { counter-reset: opt; }
+  .opts-col .opt::before { counter-increment: opt; content: counter(opt); display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-right: 10px; border-radius: 6px; font-size: .78rem; font-weight: 600; color: var(--ink-2); background: color-mix(in srgb, var(--ink-2) 12%, transparent); vertical-align: 1px; }
+}

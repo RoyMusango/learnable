@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob: data:; connect-src 'self' https:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Learnable · Advanced Machine Learning</title>
   <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
@@ -14,16 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="Learnable">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="preload" href="fonts/jost-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <script>
-    // Thème mémorisé, puis niveau de rendu : « fx » (ordinateur : animations et effets) ou version légère (téléphone, tablette, animations réduites)
-    (function () {
-      var d = document.documentElement;
-      try { var t = localStorage.getItem('applangues-theme'); if (t) d.dataset.theme = t; } catch (e) { }
-      var q = matchMedia('(max-width: 860px), (pointer: coarse), (prefers-reduced-motion: reduce)');
-      var set = function () { d.classList.toggle('fx', !q.matches); };
-      set(); if (q.addEventListener) q.addEventListener('change', set);
-    })();
-  </script>
+  <script src="js/boot.js"></script>
   <link rel="stylesheet" href="js/vendor/katex/katex.min.css">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/theme.css">
